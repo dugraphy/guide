@@ -1,5 +1,5 @@
 {
-  "body": "## 완료\n\n- [x] Next.js 프로젝트 초기 설정\n- [x] 사이드바 컴포넌트\n- [x] 워크스페이스 레이아웃\n- [x] 동적 페이지 라우트\n- [x] GitHub API 연동\n\n## 진행 중\n\n- [ ] 블록 에디터 (텍스트, 제목, 체크리스트)\n- [ ] 페이지 계층 구조 (하위 페이지)\n\n## 예정\n\n- [ ] 데이터베이스 뷰 (테이블, 칸반)\n- [ ] 다크 모드\n- [ ] 검색 기능",
+  "body": "[{\"id\":\"c1\",\"type\":\"paragraph\",\"props\":{\"textColor\":\"default\",\"backgroundColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"GitHub API 연동 ✅  블록 에디터 ✅  Supabase 연동 ✅\",\"styles\":{}}],\"children\":[]}]",
   "icon": "✅",
   "description": "개발 로드맵과 남은 작업을 추적합니다.",
   "title": "할 일 목록",
