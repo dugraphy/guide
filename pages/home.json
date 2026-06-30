@@ -3,5 +3,5 @@
   "title": "홈",
   "icon": "🏠",
   "description": "",
-  "body": "[{\"id\":\"348e6ca9-2aa4-4257-abfd-3682559a06f1\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]"
+  "body": "[{\"id\":\"348e6ca9-2aa4-4257-abfd-3682559a06f1\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"c10631c6-9dcc-45ef-aa20-5edc8df887b0\",\"type\":\"pageLink\",\"props\":{\"pageSlug\":\"\",\"pageTitle\":\"\",\"pageIcon\":\"📄\",\"pageDescription\":\"\"},\"children\":[]}]"
 }
