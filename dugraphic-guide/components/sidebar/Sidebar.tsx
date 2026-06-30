@@ -1,5 +1,6 @@
 import { getPages } from "@/lib/pages";
 import SidebarItem from "./SidebarItem";
+import NewPageButton from "./NewPageButton";
 
 const NAV_ITEMS = [
   { href: "/", icon: "🏠", label: "홈" },
@@ -40,10 +41,7 @@ export default async function Sidebar() {
           />
         ))}
 
-        <button className="flex items-center gap-1.5 h-7 px-2 mt-1 rounded text-sm text-[var(--fg-muted)] hover:bg-[var(--hover)] hover:text-[var(--fg)] transition-colors w-full text-left">
-          <span className="w-5 text-center leading-none">+</span>
-          <span>새 페이지</span>
-        </button>
+        <NewPageButton />
       </nav>
     </aside>
   );

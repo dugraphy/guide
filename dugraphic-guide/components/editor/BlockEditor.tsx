@@ -15,7 +15,6 @@ function parseInitialContent(body: string): PartialBlock[] | undefined {
     // not BlockNote JSON
   }
   if (body.trim()) {
-    // 기존 텍스트를 단순 단락으로 래핑
     return [{ type: "paragraph", content: [{ type: "text", text: body, styles: {} }] }];
   }
   return undefined;
@@ -23,40 +22,26 @@ function parseInitialContent(body: string): PartialBlock[] | undefined {
 
 interface Props {
   page: PageData;
+  onBodyChange: (body: string) => void;
 }
 
-export default function BlockEditor({ page }: Props) {
+export default function BlockEditor({ page, onBodyChange }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editor = useCreateBlockNote({
     initialContent: parseInitialContent(page.body),
   });
 
-  const save = useCallback(
-    async (ed: BlockNoteEditor) => {
-      const body = JSON.stringify(ed.document);
-      await fetch("/api/pages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...page, body }),
-      });
-    },
-    [page]
-  );
-
   const handleChange = useCallback(
     (ed: BlockNoteEditor) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => save(ed), 2500);
+      // 300ms로 직렬화 빈도를 줄인 뒤 부모에 전달 (실제 GitHub 저장 타이머는 부모가 관리)
+      timerRef.current = setTimeout(() => {
+        onBodyChange(JSON.stringify(ed.document));
+      }, 300);
     },
-    [save]
+    [onBodyChange]
   );
 
-  return (
-    <BlockNoteView
-      editor={editor}
-      onChange={handleChange}
-      theme="light"
-    />
-  );
+  return <BlockNoteView editor={editor} onChange={handleChange} theme="light" />;
 }
