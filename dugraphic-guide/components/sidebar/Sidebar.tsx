@@ -1,5 +1,6 @@
 import { getPages } from "@/lib/pages";
 import SidebarItem from "./SidebarItem";
+import PageSidebarItem from "./PageSidebarItem";
 import NewPageButton from "./NewPageButton";
 
 const NAV_ITEMS = [
@@ -33,8 +34,9 @@ export default async function Sidebar() {
         </div>
 
         {pages.map((page) => (
-          <SidebarItem
+          <PageSidebarItem
             key={page.slug}
+            slug={page.slug}
             href={`/page/${page.slug}`}
             icon={page.icon}
             label={page.title}

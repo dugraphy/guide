@@ -83,6 +83,29 @@ export async function getPage(slug: string): Promise<PageData | undefined> {
   return rowToPage(data as PageRow);
 }
 
+export async function deletePage(slug: string): Promise<void> {
+  // 1. Supabase 삭제 (primary)
+  const { error } = await supabase.from("pages").delete().eq("slug", slug);
+  if (error) throw new Error(`deletePage(${slug}): ${error.message}`);
+
+  // 2. GitHub 백업 삭제 (secondary — 실패 시 로그만)
+  const path = `${PAGES_DIR}/${slug}.json`;
+  try {
+    const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path });
+    if ("sha" in data) {
+      await octokit.repos.deleteFile({
+        owner: OWNER,
+        repo: REPO,
+        path,
+        message: `docs: delete ${slug}`,
+        sha: data.sha,
+      });
+    }
+  } catch (err) {
+    console.error("[github-backup] delete failed for", slug, err);
+  }
+}
+
 export async function upsertPage(
   page: PageData
 ): Promise<{ sha: string | undefined; path: string }> {
