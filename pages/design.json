@@ -1,5 +1,5 @@
 {
-  "body": "[{\"id\":\"9455b0b9-294a-4451-a37f-460f1c2a2398\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"CSS 변수로 정의된 디자인 토큰을 사용합니다.\",\"styles\":{}}],\"children\":[]},{\"id\":\"3c30b026-b121-4774-9b62-ef2bcf4b7e88\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"2baf17fc-778d-4e44-9525-bf2d7e1f4881\",\"type\":\"image\",\"props\":{\"textAlignment\":\"left\",\"backgroundColor\":\"default\",\"name\":\"\",\"url\":\"\",\"caption\":\"\",\"showPreview\":true},\"children\":[]},{\"id\":\"cb83e523-9c74-4f45-a3f1-70fdb1c02c80\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
+  "body": "[{\"id\":\"9455b0b9-294a-4451-a37f-460f1c2a2398\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"CSS 변수로 정의된 디자인 토큰을 사용합니다.\",\"styles\":{}}],\"children\":[]}]",
   "icon": "🎨",
   "description": "색상, 타이포그래피 규칙",
   "title": "디자인 가이드",
