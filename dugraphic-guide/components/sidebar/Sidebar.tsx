@@ -1,4 +1,5 @@
 import { getPages } from "@/lib/pages";
+import { getDatabases } from "@/lib/databases";
 import SidebarItem from "./SidebarItem";
 import PageSidebarItem from "./PageSidebarItem";
 import NewPageButton from "./NewPageButton";
@@ -8,7 +9,7 @@ const NAV_ITEMS = [
 ];
 
 export default async function Sidebar() {
-  const pages = await getPages();
+  const [pages, databases] = await Promise.all([getPages(), getDatabases()]);
 
   return (
     <aside
@@ -44,6 +45,24 @@ export default async function Sidebar() {
         ))}
 
         <NewPageButton />
+
+        {databases.length > 0 && (
+          <>
+            <div className="mt-4 mb-1 px-2">
+              <span className="text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wider">
+                데이터베이스
+              </span>
+            </div>
+            {databases.map((db) => (
+              <SidebarItem
+                key={db.slug}
+                href={`/db/${db.slug}`}
+                icon="🗄️"
+                label={db.name}
+              />
+            ))}
+          </>
+        )}
       </nav>
     </aside>
   );
