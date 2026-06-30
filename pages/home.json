@@ -3,5 +3,5 @@
   "title": "홈",
   "icon": "🏠",
   "description": "",
-  "body": "[{\"id\":\"348e6ca9-2aa4-4257-abfd-3682559a06f1\",\"type\":\"quote\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\"},\"content\":[],\"children\":[]},{\"id\":\"c10631c6-9dcc-45ef-aa20-5edc8df887b0\",\"type\":\"pageLink\",\"props\":{\"pageSlug\":\"design\",\"pageTitle\":\"디자인 가이드\",\"pageIcon\":\"🎨\",\"pageDescription\":\"색상, 타이포그래피, 컴포넌트 스타일 규칙을 정리합니다.\"},\"children\":[]}]"
+  "body": "[{\"id\":\"e6752cb7-c5eb-45fe-8abd-c0281f925306\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]"
 }
