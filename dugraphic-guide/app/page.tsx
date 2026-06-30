@@ -1,45 +1,28 @@
-import PageHeader from "@/components/editor/PageHeader";
-import { getPages } from "@/lib/pages";
-import Link from "next/link";
+import { getPage, upsertPage } from "@/lib/pages";
+import dynamic from "next/dynamic";
+
+// PageEditorWrapper uses dynamic imports internally — load it dynamically
+// to prevent SSR issues with BlockNote
+const PageEditorWrapper = dynamic(
+  () => import("@/components/editor/PageEditorWrapper"),
+  { ssr: false, loading: () => <div className="p-24 text-sm text-[var(--fg-muted)] animate-pulse">불러오는 중…</div> }
+);
+
+const HOME_PAGE = {
+  slug: "home",
+  title: "홈",
+  icon: "🏠",
+  description: "",
+  body: "[]",
+};
 
 export default async function HomePage() {
-  const pages = await getPages();
-  return (
-    <div>
-      <PageHeader
-        icon="👋"
-        title="안녕하세요!"
-        description="Dugraphic Guide 워크스페이스에 오신 걸 환영합니다."
-      />
+  let page = await getPage("home");
+  if (!page) {
+    await upsertPage(HOME_PAGE);
+    page = await getPage("home");
+  }
+  if (!page) return null;
 
-      <div className="max-w-3xl px-24 py-4">
-        <div className="border-t border-[var(--border)] mb-8" />
-
-        <section>
-          <h2 className="text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wider mb-3">
-            페이지
-          </h2>
-          <div className="flex flex-col gap-1.5">
-            {pages.map((page) => (
-              <Link
-                key={page.slug}
-                href={`/page/${page.slug}`}
-                className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border)] hover:bg-[var(--hover)] transition-colors group"
-              >
-                <span className="text-2xl">{page.icon}</span>
-                <div>
-                  <div className="text-sm font-medium text-[var(--fg)] group-hover:text-[var(--accent)] transition-colors">
-                    {page.title}
-                  </div>
-                  <div className="text-xs text-[var(--fg-muted)]">
-                    {page.description}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
+  return <PageEditorWrapper page={page} />;
 }

@@ -64,6 +64,7 @@ export async function getPages(): Promise<PageData[]> {
   const { data, error } = await supabase
     .from("pages")
     .select("slug, title, body")
+    .neq("slug", "home") // home 페이지는 사이드바에 표시 안 함
     .order("title");
   if (error) throw new Error(`getPages: ${error.message}`);
   return (data as PageRow[]).map(rowToPage);
