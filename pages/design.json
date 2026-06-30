@@ -1,5 +1,5 @@
 {
-  "body": "CSS 변수로 정의된 디자인 토큰을 사용합니다.",
+  "body": "[{\"id\":\"9455b0b9-294a-4451-a37f-460f1c2a2398\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"CSS 변수로 정의된 디자인 토큰을 사용합니다.\",\"styles\":{}}],\"children\":[]}]",
   "icon": "🎨",
   "description": "색상, 타이포그래피 규칙",
   "title": "디자인 가이드",
