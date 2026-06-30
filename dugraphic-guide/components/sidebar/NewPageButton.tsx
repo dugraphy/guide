@@ -25,6 +25,7 @@ export default function NewPageButton() {
       });
       if (res.ok) {
         router.push(`/page/${slug}?new=1`);
+        router.refresh(); // Sidebar(서버 컴포넌트) 캐시 무효화 → 새 페이지 목록 반영
       }
     } finally {
       setLoading(false);
