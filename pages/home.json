@@ -3,5 +3,5 @@
   "title": "홈",
   "icon": "🏠",
   "description": "",
-  "body": "[{\"id\":\"e6752cb7-c5eb-45fe-8abd-c0281f925306\",\"type\":\"table\",\"props\":{\"textColor\":\"default\"},\"content\":{\"type\":\"tableContent\",\"columnWidths\":[null,null],\"rows\":[{\"cells\":[{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}},{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}}]},{\"cells\":[{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}},{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}}]}]},\"children\":[]}]"
+  "body": "[{\"id\":\"50a3cd37-6464-40d6-84d1-3f6e0f6ecd94\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]"
 }
