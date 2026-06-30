@@ -2,14 +2,31 @@
 
 import { useEffect, useRef } from "react";
 
+export type SaveStatus = "idle" | "saving" | "saved";
+
+const SAVE_LABEL: Record<SaveStatus, string> = {
+  idle: "저장",
+  saving: "저장 중...",
+  saved: "저장됨 ✓",
+};
+
 interface Props {
   icon?: string;
   title: string;
   onTitleChange: (title: string) => void;
   isNew?: boolean;
+  onSave?: () => void;
+  saveStatus?: SaveStatus;
 }
 
-export default function EditablePageHeader({ icon, title, onTitleChange, isNew }: Props) {
+export default function EditablePageHeader({
+  icon,
+  title,
+  onTitleChange,
+  isNew,
+  onSave,
+  saveStatus = "idle",
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -21,6 +38,23 @@ export default function EditablePageHeader({ icon, title, onTitleChange, isNew }
 
   return (
     <div className="max-w-3xl px-24 pt-16 pb-4">
+      {onSave && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={onSave}
+            disabled={saveStatus === "saving"}
+            className={`text-xs px-3 py-1.5 rounded font-medium transition-all duration-150
+              ${
+                saveStatus === "saved"
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "bg-[var(--hover)] text-[var(--fg-muted)] hover:bg-[var(--active)] hover:text-[var(--fg)]"
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {SAVE_LABEL[saveStatus]}
+          </button>
+        </div>
+      )}
       {icon && <div className="text-5xl mb-3">{icon}</div>}
       <input
         ref={inputRef}

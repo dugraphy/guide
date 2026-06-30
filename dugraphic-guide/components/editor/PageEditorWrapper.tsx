@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { PageData } from "@/lib/data";
-import EditablePageHeader from "./EditablePageHeader";
+import EditablePageHeader, { type SaveStatus } from "./EditablePageHeader";
 
 const BlockEditor = dynamic(() => import("./BlockEditor"), {
   ssr: false,
@@ -23,41 +23,54 @@ interface Props {
 export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
   const router = useRouter();
   const [page, setPage] = useState(initialPage);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  // 항상 최신 page를 참조 — setTimeout 클로저가 stale state를 보지 않게 함
   const pageRef = useRef(page);
   pageRef.current = page;
 
   const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bodyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const saveToGitHub = useCallback(async () => {
-    await fetch("/api/pages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pageRef.current),
-    });
-  }, []);
+  const performSave = useCallback(async () => {
+    setSaveStatus("saving");
+    try {
+      await fetch("/api/pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pageRef.current),
+      });
+      setSaveStatus("saved");
+      if (savedResetTimerRef.current) clearTimeout(savedResetTimerRef.current);
+      savedResetTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
+      router.refresh();
+    } catch {
+      setSaveStatus("idle");
+    }
+  }, [router]);
+
+  const handleSaveClick = useCallback(() => {
+    if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
+    if (bodyTimerRef.current) clearTimeout(bodyTimerRef.current);
+    performSave();
+  }, [performSave]);
 
   const handleTitleChange = useCallback(
     (title: string) => {
       setPage((prev) => ({ ...prev, title }));
       if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
-      titleTimerRef.current = setTimeout(async () => {
-        await saveToGitHub();
-        router.refresh(); // 저장 완료 후 Sidebar 서버 컴포넌트 재렌더
-      }, 1500);
+      titleTimerRef.current = setTimeout(performSave, 1500);
     },
-    [saveToGitHub, router]
+    [performSave]
   );
 
   const handleBodyChange = useCallback(
     (body: string) => {
       setPage((prev) => ({ ...prev, body }));
       if (bodyTimerRef.current) clearTimeout(bodyTimerRef.current);
-      bodyTimerRef.current = setTimeout(saveToGitHub, 2500);
+      bodyTimerRef.current = setTimeout(performSave, 2500);
     },
-    [saveToGitHub]
+    [performSave]
   );
 
   return (
@@ -67,6 +80,8 @@ export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
         title={page.title}
         onTitleChange={handleTitleChange}
         isNew={isNew}
+        onSave={handleSaveClick}
+        saveStatus={saveStatus}
       />
       <div className="max-w-3xl px-14 py-4">
         <div className="border-t border-[var(--border)] mb-4" />
