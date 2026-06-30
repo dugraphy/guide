@@ -3,5 +3,5 @@
   "icon": "📄",
   "title": "투두리스트",
   "description": "",
-  "body": "[]"
+  "body": "[{\"id\":\"3f5fbcca-57fa-4dec-be8c-90ee2378d18a\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"투두\",\"styles\":{}}],\"children\":[]},{\"id\":\"003ffd5a-df4d-4985-996d-2c9b92d955e4\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]"
 }
