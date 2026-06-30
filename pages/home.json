@@ -3,5 +3,5 @@
   "title": "홈",
   "icon": "🏠",
   "description": "",
-  "body": "[{\"id\":\"2b998f89-2218-4711-b12a-1c24bdf11527\",\"type\":\"codeBlock\",\"props\":{\"language\":\"text\"},\"content\":[],\"children\":[]}]"
+  "body": "[{\"id\":\"4ce23a4e-96ce-4893-a2be-eb2b0a6c5244\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]"
 }
