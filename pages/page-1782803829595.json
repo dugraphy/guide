@@ -1,7 +1,7 @@
 {
   "slug": "page-1782803829595",
-  "title": "제목 없음",
+  "title": "테스트파일",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"c1990fba-7166-4950-916b-491a77ce30a7\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"이건 테스트파일\",\"styles\":{}}],\"children\":[]}]"
+  "body": "[{\"id\":\"c1990fba-7166-4950-916b-491a77ce30a7\",\"type\":\"paragraph\",\"props\":{\"textColor\":\"default\",\"textAlignment\":\"left\",\"backgroundColor\":\"default\"},\"content\":[{\"text\":\"이건 테스트파일\",\"type\":\"text\",\"styles\":{}}],\"children\":[]}]"
 }
