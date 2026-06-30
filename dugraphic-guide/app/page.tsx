@@ -1,8 +1,9 @@
 import PageHeader from "@/components/editor/PageHeader";
-import { PAGES } from "@/lib/data";
+import { getPages } from "@/lib/pages";
 import Link from "next/link";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const pages = await getPages();
   return (
     <div>
       <PageHeader
@@ -19,7 +20,7 @@ export default function HomePage() {
             페이지
           </h2>
           <div className="flex flex-col gap-1.5">
-            {PAGES.map((page) => (
+            {pages.map((page) => (
               <Link
                 key={page.slug}
                 href={`/page/${page.slug}`}
