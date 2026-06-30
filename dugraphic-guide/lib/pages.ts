@@ -37,15 +37,22 @@ export async function getPages(): Promise<PageData[]> {
 
 export async function getPage(slug: string): Promise<PageData | undefined> {
   const path = `${PAGES_DIR}/${slug}.json`;
-  try {
-    const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path });
-    if (!("content" in data)) return undefined;
-    const raw = Buffer.from(data.content, "base64").toString("utf-8");
-    return JSON.parse(raw) as PageData;
-  } catch (err: unknown) {
-    if ((err as { status?: number }).status === 404) return undefined;
-    throw err;
+  // GitHub Contents API는 write 직후 일시적으로 404를 반환할 수 있어 재시도
+  const delays = [500, 1000];
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path });
+      if (!("content" in data)) return undefined;
+      const raw = Buffer.from(data.content, "base64").toString("utf-8");
+      return JSON.parse(raw) as PageData;
+    } catch (err: unknown) {
+      if ((err as { status?: number }).status !== 404) throw err;
+      if (attempt < delays.length) {
+        await new Promise((r) => setTimeout(r, delays[attempt]));
+      }
+    }
   }
+  return undefined;
 }
 
 export async function upsertPage(page: PageData): Promise<{ sha: string | undefined; path: string }> {
