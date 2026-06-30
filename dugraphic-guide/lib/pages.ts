@@ -35,6 +35,19 @@ export async function getPages(): Promise<PageData[]> {
   return pages.filter((p): p is PageData => p !== null);
 }
 
+export async function getPage(slug: string): Promise<PageData | undefined> {
+  const path = `${PAGES_DIR}/${slug}.json`;
+  try {
+    const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path });
+    if (!("content" in data)) return undefined;
+    const raw = Buffer.from(data.content, "base64").toString("utf-8");
+    return JSON.parse(raw) as PageData;
+  } catch (err: unknown) {
+    if ((err as { status?: number }).status === 404) return undefined;
+    throw err;
+  }
+}
+
 export async function upsertPage(page: PageData): Promise<{ sha: string | undefined; path: string }> {
   const path = `${PAGES_DIR}/${page.slug}.json`;
   const content = Buffer.from(JSON.stringify(page, null, 2)).toString("base64");

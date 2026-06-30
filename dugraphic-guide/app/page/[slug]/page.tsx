@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import PageHeader from "@/components/editor/PageHeader";
-import { getPage } from "@/lib/data";
+import EditorLoader from "@/components/editor/EditorLoader";
+import { getPage } from "@/lib/pages";
 
 export default async function PageRoute({
   params,
@@ -8,7 +9,7 @@ export default async function PageRoute({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const page = getPage(slug);
+  const page = await getPage(slug);
 
   if (!page) notFound();
 
@@ -19,11 +20,9 @@ export default async function PageRoute({
         title={page.title}
         description={page.description}
       />
-      <div className="max-w-3xl px-24 py-4">
-        <div className="border-t border-[var(--border)] mb-8" />
-        <div className="text-sm text-[var(--fg)] leading-7 whitespace-pre-wrap">
-          {page.body}
-        </div>
+      <div className="max-w-3xl px-14 py-4">
+        <div className="border-t border-[var(--border)] mb-4" />
+        <EditorLoader page={page} />
       </div>
     </div>
   );
