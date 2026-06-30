@@ -3,5 +3,5 @@
   "title": "제목 이거  ㄷㄷ",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"292ce9af-4e62-4a32-b150-ccae8c19fbb9\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"[]\",\"styles\":{}}],\"children\":[]},{\"id\":\"f4f18ee3-44bc-4c84-a189-bc80edec7db2\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"움,,,\",\"styles\":{}}],\"children\":[]}]"
+  "body": "[{\"id\":\"292ce9af-4e62-4a32-b150-ccae8c19fbb9\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"[]\",\"styles\":{}}],\"children\":[]},{\"id\":\"f4f18ee3-44bc-4c84-a189-bc80edec7db2\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"움,,,ㄷㄷㄷ\",\"styles\":{}}],\"children\":[]}]"
 }
