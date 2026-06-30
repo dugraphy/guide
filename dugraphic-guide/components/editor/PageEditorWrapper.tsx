@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import type { PageData } from "@/lib/data";
 import EditablePageHeader from "./EditablePageHeader";
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
+  const router = useRouter();
   const [page, setPage] = useState(initialPage);
 
   // 항상 최신 page를 참조 — setTimeout 클로저가 stale state를 보지 않게 함
@@ -41,9 +43,12 @@ export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
     (title: string) => {
       setPage((prev) => ({ ...prev, title }));
       if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
-      titleTimerRef.current = setTimeout(saveToGitHub, 1500);
+      titleTimerRef.current = setTimeout(async () => {
+        await saveToGitHub();
+        router.refresh(); // 저장 완료 후 Sidebar 서버 컴포넌트 재렌더
+      }, 1500);
     },
-    [saveToGitHub]
+    [saveToGitHub, router]
   );
 
   const handleBodyChange = useCallback(
