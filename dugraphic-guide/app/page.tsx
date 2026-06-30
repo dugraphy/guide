@@ -1,12 +1,5 @@
 import { getPage, upsertPage } from "@/lib/pages";
-import dynamic from "next/dynamic";
-
-// PageEditorWrapper uses dynamic imports internally — load it dynamically
-// to prevent SSR issues with BlockNote
-const PageEditorWrapper = dynamic(
-  () => import("@/components/editor/PageEditorWrapper"),
-  { ssr: false, loading: () => <div className="p-24 text-sm text-[var(--fg-muted)] animate-pulse">불러오는 중…</div> }
-);
+import PageEditorWrapper from "@/components/editor/PageEditorWrapper";
 
 const HOME_PAGE = {
   slug: "home",
