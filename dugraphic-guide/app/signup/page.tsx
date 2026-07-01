@@ -1,8 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import Link from "next/link";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
+
+function formatAuthError(message: string): string {
+  if (/captcha/i.test(message)) {
+    return "캡차 인증에 실패했습니다. 다시 시도해주세요.";
+  }
+  return message;
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -10,6 +18,8 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,16 +28,25 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!captchaToken) {
+      setError("캡차 인증을 완료해주세요.");
+      return;
+    }
     setLoading(true);
     setError("");
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        captchaToken,
+      },
     });
     if (error) {
-      setError(error.message);
+      setError(formatAuthError(error.message));
       setLoading(false);
+      setCaptchaToken("");
+      turnstileRef.current?.reset();
     } else {
       setDone(true);
     }
@@ -80,10 +99,15 @@ export default function SignupPage() {
               placeholder="6자 이상"
             />
           </div>
+          <Turnstile
+            ref={turnstileRef}
+            onVerify={setCaptchaToken}
+            onExpire={() => setCaptchaToken("")}
+          />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !captchaToken}
             className="w-full py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {loading ? "처리 중..." : "회원가입"}
