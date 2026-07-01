@@ -1,8 +1,22 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { DatabaseDef, DatabaseRow, Column } from "@/lib/databases";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { ResizableTh } from "@/components/table/ResizableTh";
+import { TABLE } from "@/components/table/tableStyles";
+
+const SLUG_STORAGE_KEY: Record<string, string> = {
+  clients: "column-widths-companies",
+};
+
+function defaultColWidth(col: Column): number {
+  if (col.type === "date") return 135;
+  if (col.type === "select") return 110;
+  if (col.name === "메모") return 220;
+  return 130;
+}
 
 interface Props {
   db: DatabaseDef;
@@ -10,14 +24,6 @@ interface Props {
   initialStatus: string;
   initialIndustry: string;
   initialHighlight?: string;
-}
-
-// Column min-widths by type / name
-function colMinWidth(col: Column): number {
-  if (col.type === "date") return 135;
-  if (col.type === "select") return 100;
-  if (col.name === "메모") return 220;
-  return 120;
 }
 
 export default function DatabaseView({
@@ -29,16 +35,17 @@ export default function DatabaseView({
 }: Props) {
   const router = useRouter();
 
-  // ── rows state with ref for debounced saves ──────────────────────────────
+  // ── rows state ────────────────────────────────────────────────────────────
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const rowsRef = useRef<DatabaseRow[]>(initialRows);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // ── highlight state ───────────────────────────────────────────────────────
-  const [highlightId, setHighlightId] = useState<string | null>(() => {
-    if (!initialHighlight) return null;
-    return initialRows.find((r) => r.data["업체명"] === initialHighlight)?.id ?? null;
-  });
+  // ── highlight ─────────────────────────────────────────────────────────────
+  const [highlightId, setHighlightId] = useState<string | null>(() =>
+    initialHighlight
+      ? (initialRows.find((r) => r.data["업체명"] === initialHighlight)?.id ?? null)
+      : null
+  );
   const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
 
   useEffect(() => {
@@ -48,33 +55,21 @@ export default function DatabaseView({
     return () => clearTimeout(t);
   }, [highlightId]);
 
-  // ── filter state ─────────────────────────────────────────────────────────
+  // ── filters ───────────────────────────────────────────────────────────────
   const [status, setStatus] = useState(initialStatus || "전체");
   const [industry, setIndustry] = useState(initialIndustry || "");
 
-  // ── column metadata ───────────────────────────────────────────────────────
-  const statusCol = db.columns.find(
-    (c) => c.name === "상태" && c.type === "select"
-  );
-  const industryCol = db.columns.find(
-    (c) => c.name === "업종" && c.type === "select"
-  );
-  const deadlineColId = db.columns.find(
-    (c) => c.name === "마감 일자" && c.type === "date"
-  )?.id;
-  const statusTabs = statusCol
-    ? ["전체", ...(statusCol.options ?? [])]
-    : null;
+  const statusCol = db.columns.find((c) => c.name === "상태" && c.type === "select");
+  const industryCol = db.columns.find((c) => c.name === "업종" && c.type === "select");
+  const deadlineColId = db.columns.find((c) => c.name === "마감 일자" && c.type === "date")?.id;
+  const statusTabs = statusCol ? ["전체", ...(statusCol.options ?? [])] : null;
 
-  // ── filtered + sorted display rows ───────────────────────────────────────
   const displayRows = (() => {
     let result = rows;
-    if (status !== "전체" && statusCol) {
+    if (status !== "전체" && statusCol)
       result = result.filter((r) => r.data[statusCol.id] === status);
-    }
-    if (industry && industryCol) {
+    if (industry && industryCol)
       result = result.filter((r) => r.data[industryCol.id] === industry);
-    }
     if (deadlineColId) {
       result = [...result].sort((a, b) => {
         const da = a.data[deadlineColId] || "";
@@ -95,30 +90,29 @@ export default function DatabaseView({
       if (s && s !== "전체") p.set("status", s);
       if (ind) p.set("업종", ind);
       const qs = p.toString();
-      router.replace(`/db/${db.slug}${qs ? `?${qs}` : ""}`, {
-        scroll: false,
-      });
+      router.replace(`/db/${db.slug}${qs ? `?${qs}` : ""}`, { scroll: false });
     },
     [router, db.slug]
   );
 
-  const changeStatus = (s: string) => {
-    setStatus(s);
-    updateUrl(s, industry);
-  };
-  const changeIndustry = (ind: string) => {
-    setIndustry(ind);
-    updateUrl(status, ind);
-  };
+  // ── resizable columns ─────────────────────────────────────────────────────
+  const defaultWidths = useMemo(() => {
+    const m: Record<string, number> = {};
+    db.columns.forEach((c) => { m[c.id] = defaultColWidth(c); });
+    return m;
+  }, [db.columns]);
 
-  // ── cell update with debounced save ──────────────────────────────────────
+  const storageKey = SLUG_STORAGE_KEY[db.slug] ?? `column-widths-${db.slug}`;
+  const { widths, startResize, getWidth } = useResizableColumns(storageKey, defaultWidths);
+  const totalWidth = db.columns.reduce((sum, c) => sum + getWidth(c.id), 0) + 40;
+
+  // ── cell update ───────────────────────────────────────────────────────────
   const handleCellUpdate = useCallback(
     (rowId: string, colId: string, value: string) => {
       rowsRef.current = rowsRef.current.map((r) =>
         r.id === rowId ? { ...r, data: { ...r.data, [colId]: value } } : r
       );
       setRows([...rowsRef.current]);
-
       if (saveTimers.current[rowId]) clearTimeout(saveTimers.current[rowId]);
       saveTimers.current[rowId] = setTimeout(async () => {
         const row = rowsRef.current.find((r) => r.id === rowId);
@@ -133,12 +127,9 @@ export default function DatabaseView({
     [db.slug]
   );
 
-  // ── row add ───────────────────────────────────────────────────────────────
   const handleAddRow = async () => {
     const emptyData: Record<string, string> = {};
-    db.columns.forEach((c) => {
-      emptyData[c.id] = "";
-    });
+    db.columns.forEach((c) => { emptyData[c.id] = ""; });
     const resp = await fetch(`/api/databases/${db.slug}/rows`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -149,33 +140,28 @@ export default function DatabaseView({
     setRows([...rowsRef.current]);
   };
 
-  // ── row delete ───────────────────────────────────────────────────────────
   const handleDeleteRow = async (rowId: string) => {
     if (saveTimers.current[rowId]) {
       clearTimeout(saveTimers.current[rowId]);
       delete saveTimers.current[rowId];
     }
-    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-      method: "DELETE",
-    });
+    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, { method: "DELETE" });
     rowsRef.current = rowsRef.current.filter((r) => r.id !== rowId);
     setRows([...rowsRef.current]);
   };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="px-8 pt-8 pb-0 shrink-0">
         <h1 className="text-2xl font-bold text-[var(--fg)] mb-4">{db.name}</h1>
-
         <div className="flex items-end justify-between">
-          {/* Status tabs */}
           {statusTabs ? (
             <div className="flex">
               {statusTabs.map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => changeStatus(tab)}
+                  onClick={() => { setStatus(tab); updateUrl(tab, industry); }}
                   className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                     status === tab
                       ? "border-[var(--accent)] text-[var(--accent)]"
@@ -186,48 +172,47 @@ export default function DatabaseView({
                 </button>
               ))}
             </div>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
 
-          {/* Industry dropdown filter */}
           {industryCol && (industryCol.options?.length ?? 0) > 0 && (
             <div className="mb-0.5">
               <select
                 value={industry}
-                onChange={(e) => changeIndustry(e.target.value)}
+                onChange={(e) => { setIndustry(e.target.value); updateUrl(status, e.target.value); }}
                 className="text-sm border border-[var(--border)] rounded px-2 py-1 bg-[var(--bg)] text-[var(--fg)] outline-none cursor-pointer"
               >
                 <option value="">업종 전체</option>
                 {industryCol.options?.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
+                  <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
             </div>
           )}
         </div>
-
         <div className="border-b border-[var(--border)]" />
       </div>
 
-      {/* ── Table ── */}
+      {/* Table */}
       <div className="flex-1 overflow-auto px-8 py-4">
-        <div className="overflow-x-auto rounded border border-[var(--border)]">
-          <table className="text-sm border-collapse" style={{ minWidth: "100%" }}>
+        <div className={TABLE.wrapper}>
+          <table
+            className={TABLE.table}
+            style={{ tableLayout: "fixed", width: totalWidth }}
+          >
             <thead>
               <tr>
-                {db.columns.map((col) => (
-                  <th
+                {db.columns.map((col, i) => (
+                  <ResizableTh
                     key={col.id}
-                    style={{ minWidth: colMinWidth(col) }}
-                    className="text-left px-3 py-2 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] whitespace-nowrap last:border-r-0"
+                    colId={col.id}
+                    width={getWidth(col.id)}
+                    onResizeStart={startResize}
+                    noHandle={i === db.columns.length - 1}
                   >
                     {col.name}
-                  </th>
+                  </ResizableTh>
                 ))}
-                <th className="w-10 bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
+                <th className={TABLE.thAction} style={{ width: 40 }} />
               </tr>
             </thead>
             <tbody>
@@ -235,64 +220,51 @@ export default function DatabaseView({
                 <tr
                   key={row.id}
                   ref={row.id === highlightId ? highlightRowRef : undefined}
-                  className={`group transition-colors hover:bg-[var(--hover)] ${
+                  className={
                     row.id === highlightId
-                      ? "bg-[var(--accent)]/10 outline outline-2 outline-[var(--accent)]"
-                      : idx % 2 === 1
-                      ? "bg-[var(--bg-secondary)]/40"
-                      : ""
-                  }`}
+                      ? "group transition-colors duration-150 bg-[var(--accent)]/10 outline outline-2 outline-[var(--accent)]"
+                      : TABLE.tr(idx)
+                  }
                 >
                   {db.columns.map((col) => {
                     const value = row.data[col.id] ?? "";
                     return (
-                      <td
-                        key={col.id}
-                        className="border-b border-r border-[var(--border)] p-0 last:border-r-0"
-                      >
+                      <td key={col.id} className={TABLE.td}>
                         {col.type === "select" ? (
                           <select
                             value={value}
-                            onChange={(e) =>
-                              handleCellUpdate(row.id, col.id, e.target.value)
-                            }
-                            className="w-full px-2 py-1.5 bg-transparent outline-none text-[var(--fg)] text-sm cursor-pointer"
+                            onChange={(e) => handleCellUpdate(row.id, col.id, e.target.value)}
+                            className={TABLE.cellSelect}
                           >
                             <option value="">-</option>
                             {col.options?.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
+                              <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
                         ) : col.type === "date" ? (
                           <input
                             type="date"
                             value={value}
-                            onChange={(e) =>
-                              handleCellUpdate(row.id, col.id, e.target.value)
-                            }
-                            className="w-full px-2 py-1.5 bg-transparent outline-none text-[var(--fg)] text-sm cursor-pointer"
+                            onChange={(e) => handleCellUpdate(row.id, col.id, e.target.value)}
+                            className={TABLE.cellSelect}
                           />
                         ) : (
                           <input
                             type="text"
                             value={value}
-                            onChange={(e) =>
-                              handleCellUpdate(row.id, col.id, e.target.value)
-                            }
-                            className="w-full px-2 py-1.5 bg-transparent outline-none text-[var(--fg)] text-sm placeholder:text-[var(--fg-muted)]"
+                            onChange={(e) => handleCellUpdate(row.id, col.id, e.target.value)}
+                            className={TABLE.cellInput}
                             placeholder="-"
                           />
                         )}
                       </td>
                     );
                   })}
-                  <td className="border-b border-[var(--border)] w-10 text-center">
+                  <td className={TABLE.tdAction}>
                     <button
                       onClick={() => handleDeleteRow(row.id)}
                       title="행 삭제"
-                      className="opacity-0 group-hover:opacity-100 text-[var(--fg-muted)] hover:text-red-500 w-full py-1.5 transition-all text-base leading-none"
+                      className={TABLE.deleteBtn}
                     >
                       ×
                     </button>
@@ -303,7 +275,6 @@ export default function DatabaseView({
           </table>
         </div>
 
-        {/* Empty state */}
         {displayRows.length === 0 && (
           <p className="text-center py-12 text-sm text-[var(--fg-muted)]">
             {status !== "전체" || industry
@@ -312,7 +283,6 @@ export default function DatabaseView({
           </p>
         )}
 
-        {/* Add row */}
         <button
           onClick={handleAddRow}
           className="mt-2 flex items-center gap-1.5 text-sm text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] px-3 py-1.5 rounded transition-colors"

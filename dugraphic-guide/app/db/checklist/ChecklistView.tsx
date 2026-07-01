@@ -2,6 +2,19 @@
 
 import { useState } from "react";
 import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { ResizableTh } from "@/components/table/ResizableTh";
+import { TABLE } from "@/components/table/tableStyles";
+
+const CHECKLIST_COLS = [
+  { id: "업체명", defaultWidth: 140 },
+  { id: "메모",   defaultWidth: 200 },
+  { id: "업종",   defaultWidth: 100 },
+  { id: "작성일", defaultWidth: 130 },
+] as const;
+const CHECKLIST_DEFAULT_WIDTHS = Object.fromEntries(
+  CHECKLIST_COLS.map((c) => [c.id, c.defaultWidth])
+);
 
 const ANSWER_KEY = "답변";
 
@@ -313,6 +326,13 @@ export default function ChecklistView({ db, initialRows }: Props) {
   const questions = answerCol?.questions ?? [];
   const industryOptions = db.columns.find((c) => c.id === "업종")?.options ?? [];
 
+  const { startResize, getWidth } = useResizableColumns(
+    "column-widths-checklist",
+    CHECKLIST_DEFAULT_WIDTHS
+  );
+  const totalWidth =
+    CHECKLIST_COLS.reduce((sum, c) => sum + getWidth(c.id), 0) + 40;
+
   const displayRows = (() => {
     let result = rows;
     if (search) {
@@ -418,23 +438,18 @@ export default function ChecklistView({ db, initialRows }: Props) {
             검색 결과가 없습니다.
           </p>
         ) : (
-          <div className="rounded-lg border border-[var(--border)] overflow-hidden shadow-sm">
-            <table className="text-sm border-collapse w-full">
+          <div className={TABLE.wrapper}>
+            <table
+              className={TABLE.table}
+              style={{ tableLayout: "fixed", width: totalWidth }}
+            >
               <thead>
                 <tr>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] w-36">
-                    업체명
-                  </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)]">
-                    메모
-                  </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] w-28">
-                    업종
-                  </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)] w-32">
-                    작성일
-                  </th>
-                  <th className="w-10 bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
+                  <ResizableTh colId="업체명" width={getWidth("업체명")} onResizeStart={startResize}>업체명</ResizableTh>
+                  <ResizableTh colId="메모"   width={getWidth("메모")}   onResizeStart={startResize}>메모</ResizableTh>
+                  <ResizableTh colId="업종"   width={getWidth("업종")}   onResizeStart={startResize}>업종</ResizableTh>
+                  <ResizableTh colId="작성일" width={getWidth("작성일")} onResizeStart={startResize} noHandle>작성일</ResizableTh>
+                  <th className={TABLE.thAction} style={{ width: 40 }} />
                 </tr>
               </thead>
               <tbody>
@@ -442,29 +457,33 @@ export default function ChecklistView({ db, initialRows }: Props) {
                   <tr
                     key={row.id}
                     onClick={() => setSelectedRow(row)}
-                    className={`group cursor-pointer transition-colors duration-150 hover:bg-[var(--hover)] ${
-                      idx % 2 === 1 ? "bg-[var(--bg-secondary)]/40" : ""
-                    }`}
+                    className={`cursor-pointer ${TABLE.tr(idx)}`}
                   >
-                    <td className="px-4 py-3 border-b border-r border-[var(--border)] font-semibold text-base text-[var(--fg)] w-36">
-                      {row.data["업체명"] || <span className="text-[var(--fg-muted)] font-normal text-sm">-</span>}
+                    <td className={TABLE.td}>
+                      <span className="block px-3 py-2 font-semibold text-[var(--fg)] truncate">
+                        {row.data["업체명"] || <span className="text-[var(--fg-muted)] font-normal">-</span>}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 border-b border-r border-[var(--border)] text-sm text-[var(--fg-muted)] max-w-0">
-                      <p className="truncate">
+                    <td className={TABLE.td}>
+                      <span className="block px-3 py-2 text-sm text-[var(--fg-muted)] truncate">
                         {row.data["메모"] || "-"}
-                      </p>
+                      </span>
                     </td>
-                    <td className="px-4 py-3 border-b border-r border-[var(--border)] w-28">
-                      <IndustryBadge value={row.data["업종"] ?? ""} />
+                    <td className={TABLE.td}>
+                      <span className="block px-3 py-2">
+                        <IndustryBadge value={row.data["업종"] ?? ""} />
+                      </span>
                     </td>
-                    <td className="px-4 py-3 border-b border-[var(--border)] text-sm text-[var(--fg-muted)] w-32">
-                      {row.data["작성일"] || "-"}
+                    <td className={TABLE.td}>
+                      <span className="block px-3 py-2 text-sm text-[var(--fg-muted)]">
+                        {row.data["작성일"] || "-"}
+                      </span>
                     </td>
-                    <td className="border-b border-[var(--border)] w-10 text-center">
+                    <td className={TABLE.tdAction}>
                       <button
                         onClick={(e) => handleDelete(row.id, e)}
                         title="삭제"
-                        className="opacity-0 group-hover:opacity-100 text-[var(--fg-muted)] hover:text-red-500 w-full py-1.5 transition-all text-base leading-none"
+                        className={TABLE.deleteBtn}
                       >
                         ×
                       </button>
