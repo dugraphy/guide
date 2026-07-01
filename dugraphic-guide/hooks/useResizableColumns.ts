@@ -4,7 +4,8 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useIsDesktop } from "./useIsDesktop";
 
 const MIN_COL_WIDTH = 60;
-const ACTION_COL_WIDTH = 40; // fixed delete-button column width
+const ACTION_COL_WIDTH = 40;  // fixed delete-button column width
+const SCALE_CORRECTION = 2;   // absorbs Math.round() cumulative rounding error
 
 export function useResizableColumns(
   storageKey: string,
@@ -49,10 +50,10 @@ export function useResizableColumns(
 
   useEffect(() => {
     if (!containerEl) return;
-    // Snapshot current width immediately, then track changes.
-    setContainerWidth(containerEl.getBoundingClientRect().width);
+    // clientWidth excludes scrollbar width; snapshot immediately then track.
+    setContainerWidth(containerEl.clientWidth);
     const ro = new ResizeObserver(([entry]) => {
-      setContainerWidth(entry.contentRect.width);
+      setContainerWidth((entry.target as HTMLElement).clientWidth);
     });
     ro.observe(containerEl);
     return () => ro.disconnect();
@@ -84,7 +85,8 @@ export function useResizableColumns(
       return { scaledWidths: widths, allowScroll: false };
     }
 
-    const available = containerWidth - ACTION_COL_WIDTH;
+    // Subtract action column + rounding correction so sum never exceeds container.
+    const available = containerWidth - ACTION_COL_WIDTH - SCALE_CORRECTION;
 
     // If even minimum widths exceed the available space, allow scroll.
     if (available < minSum) {

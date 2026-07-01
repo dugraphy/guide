@@ -436,7 +436,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
             검색 결과가 없습니다.
           </p>
         ) : (
-          <div ref={containerRef} className={TABLE.wrapper}>
+          <div ref={containerRef} className={`${TABLE.wrapper}${!allowScroll ? " md:overflow-x-hidden" : ""}`}>
             <table
               className={TABLE.table}
               style={{ tableLayout: "fixed", width: "100%", minWidth: allowScroll ? totalWidth : undefined }}

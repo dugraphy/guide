@@ -193,7 +193,7 @@ export default function DatabaseView({
 
       {/* Table */}
       <div className="flex-1 overflow-auto px-8 py-4">
-        <div ref={containerRef} className={TABLE.wrapper}>
+        <div ref={containerRef} className={`${TABLE.wrapper}${!allowScroll ? " md:overflow-x-hidden" : ""}`}>
           <table
             className={TABLE.table}
             style={{ tableLayout: "fixed", width: "100%", minWidth: allowScroll ? totalWidth : undefined }}
