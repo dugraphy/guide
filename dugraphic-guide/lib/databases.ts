@@ -107,6 +107,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
     slug: "checklist",
     columns: [
       { id: "업체명", name: "업체명", type: "text" },
+      { id: "메모", name: "메모", type: "text" },
       {
         id: "업종",
         name: "업종",

@@ -33,11 +33,17 @@ function Modal({
 
 function ViewModal({
   row,
+  onMemoSave,
   onClose,
 }: {
   row: DatabaseRow;
+  onMemoSave: (memo: string) => Promise<void>;
   onClose: () => void;
 }) {
+  const [memo, setMemo] = useState(row.data["메모"] ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
   let entries: { q: string; a: string }[] = [];
   try {
     const parsed = JSON.parse((row.data[ANSWER_KEY] as string) || "[]");
@@ -48,8 +54,20 @@ function ViewModal({
     /* ignore */
   }
 
+  const handleSaveMemo = async () => {
+    setSaving(true);
+    try {
+      await onMemoSave(memo);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="p-6">
+      {/* 헤더 */}
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-lg font-bold text-[var(--fg)]">
@@ -68,6 +86,30 @@ function ViewModal({
         </button>
       </div>
 
+      {/* 내부 메모 */}
+      <div className="rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)] p-3 mb-4">
+        <p className="text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-wide mb-1.5">
+          내부 메모
+        </p>
+        <textarea
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          rows={3}
+          placeholder="팀 내부용 메모를 입력하세요"
+          className="w-full bg-transparent text-sm text-[var(--fg)] outline-none resize-none placeholder:text-[var(--fg-muted)]/60"
+        />
+        <div className="flex justify-end mt-1">
+          <button
+            onClick={handleSaveMemo}
+            disabled={saving}
+            className="text-xs px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {saving ? "저장 중..." : saved ? "저장됨 ✓" : "저장"}
+          </button>
+        </div>
+      </div>
+
+      {/* 답변 내용 */}
       <div className="border-t border-[var(--border)] pt-4 space-y-4">
         {entries.length > 0 ? (
           entries.map(({ q, a }, idx) => (
@@ -309,6 +351,19 @@ export default function ChecklistView({ db, initialRows }: Props) {
     if (selectedRow?.id === rowId) setSelectedRow(null);
   };
 
+  const handleMemoSave = async (memo: string) => {
+    if (!selectedRow) return;
+    const updatedData = { ...selectedRow.data, 메모: memo };
+    await fetch(`/api/databases/${db.slug}/rows/${selectedRow.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedData),
+    });
+    const updated = { ...selectedRow, data: updatedData };
+    setRows((prev) => prev.map((r) => (r.id === selectedRow.id ? updated : r)));
+    setSelectedRow(updated);
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
@@ -367,13 +422,16 @@ export default function ChecklistView({ db, initialRows }: Props) {
             <table className="text-sm border-collapse w-full">
               <thead>
                 <tr>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)]">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] w-36">
                     업체명
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] w-32">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)]">
+                    메모
+                  </th>
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] w-28">
                     업종
                   </th>
-                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)] w-36">
+                  <th className="text-left px-4 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)] w-32">
                     작성일
                   </th>
                   <th className="w-10 bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
@@ -388,13 +446,18 @@ export default function ChecklistView({ db, initialRows }: Props) {
                       idx % 2 === 1 ? "bg-[var(--bg-secondary)]/40" : ""
                     }`}
                   >
-                    <td className="px-4 py-3 border-b border-r border-[var(--border)] font-semibold text-base text-[var(--fg)]">
+                    <td className="px-4 py-3 border-b border-r border-[var(--border)] font-semibold text-base text-[var(--fg)] w-36">
                       {row.data["업체명"] || <span className="text-[var(--fg-muted)] font-normal text-sm">-</span>}
                     </td>
-                    <td className="px-4 py-3 border-b border-r border-[var(--border)]">
+                    <td className="px-4 py-3 border-b border-r border-[var(--border)] text-sm text-[var(--fg-muted)] max-w-0">
+                      <p className="truncate">
+                        {row.data["메모"] || "-"}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 border-b border-r border-[var(--border)] w-28">
                       <IndustryBadge value={row.data["업종"] ?? ""} />
                     </td>
-                    <td className="px-4 py-3 border-b border-[var(--border)] text-sm text-[var(--fg-muted)]">
+                    <td className="px-4 py-3 border-b border-[var(--border)] text-sm text-[var(--fg-muted)] w-32">
                       {row.data["작성일"] || "-"}
                     </td>
                     <td className="border-b border-[var(--border)] w-10 text-center">
@@ -417,7 +480,11 @@ export default function ChecklistView({ db, initialRows }: Props) {
       {/* View modal */}
       {selectedRow && (
         <Modal onClose={() => setSelectedRow(null)}>
-          <ViewModal row={selectedRow} onClose={() => setSelectedRow(null)} />
+          <ViewModal
+            row={selectedRow}
+            onMemoSave={handleMemoSave}
+            onClose={() => setSelectedRow(null)}
+          />
         </Modal>
       )}
 
