@@ -113,7 +113,16 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="px-8 pt-8 pb-0 shrink-0">
-        <h1 className="text-2xl font-bold text-[var(--fg)] mb-4">{db.name}</h1>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
+          <button
+            onClick={handleAddRow}
+            className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
+          >
+            <span className="text-base font-light leading-none">+</span>
+            문의 추가
+          </button>
+        </div>
         <div className="flex">
           {TABS.map((t) => (
             <button
@@ -225,13 +234,6 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
           </p>
         )}
 
-        <button
-          onClick={handleAddRow}
-          className="mt-2 flex items-center gap-1.5 text-sm text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] px-3 py-1.5 rounded transition-colors"
-        >
-          <span className="text-base font-light leading-none">+</span>
-          <span>행 추가</span>
-        </button>
       </div>
     </div>
   );
