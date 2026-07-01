@@ -37,7 +37,10 @@ export async function POST(request: Request) {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const mergedAnswers = JSON.stringify({ ...공통답변, ...업종별답변 });
+  const mergedAnswers = JSON.stringify([
+    ...Object.entries(공통답변 ?? {}).map(([q, a]) => ({ q, a })),
+    ...Object.entries(업종별답변 ?? {}).map(([q, a]) => ({ q, a })),
+  ]);
 
   try {
     const [clientRow, checklistRow] = await Promise.all([

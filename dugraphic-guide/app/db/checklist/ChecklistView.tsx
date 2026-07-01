@@ -31,8 +31,6 @@ function Modal({
 
 // ── View modal ────────────────────────────────────────────────────────────────
 
-const EXCLUDED_KEYS = new Set(["업체명", "담당자", "연락처", "업종", "작성일"]);
-
 function ViewModal({
   row,
   onClose,
@@ -40,16 +38,15 @@ function ViewModal({
   row: DatabaseRow;
   onClose: () => void;
 }) {
-  let answers: Record<string, string> = {};
+  let entries: { q: string; a: string }[] = [];
   try {
-    answers = JSON.parse((row.data[ANSWER_KEY] as string) || "{}");
+    const parsed = JSON.parse((row.data[ANSWER_KEY] as string) || "[]");
+    if (Array.isArray(parsed)) {
+      entries = parsed.filter((item) => item.a !== "");
+    }
   } catch {
     /* ignore */
   }
-
-  const entries = Object.entries(answers).filter(
-    ([key, value]) => !EXCLUDED_KEYS.has(key) && value !== ""
-  );
 
   return (
     <div className="p-6">
@@ -73,13 +70,13 @@ function ViewModal({
 
       <div className="border-t border-[var(--border)] pt-4 space-y-4">
         {entries.length > 0 ? (
-          entries.map(([key, value]) => (
-            <div key={key}>
+          entries.map(({ q, a }, idx) => (
+            <div key={idx}>
               <p className="text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-wide mb-1">
-                {key}
+                {q}
               </p>
               <p className="text-sm text-[var(--fg)] whitespace-pre-wrap min-h-[1.25rem]">
-                {value}
+                {a}
               </p>
             </div>
           ))
