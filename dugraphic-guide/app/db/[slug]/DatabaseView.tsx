@@ -6,6 +6,7 @@ import type { DatabaseDef, DatabaseRow, Column } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
+import { BadgeSelect } from "@/components/table/BadgeSelect";
 
 const SLUG_STORAGE_KEY: Record<string, string> = {
   clients: "column-widths-companies",
@@ -237,16 +238,14 @@ export default function DatabaseView({
                     return (
                       <td key={col.id} className={TABLE.td}>
                         {col.type === "select" ? (
-                          <select
-                            value={value}
-                            onChange={(e) => handleCellUpdate(row.id, col.id, e.target.value)}
-                            className={TABLE.cellSelect}
-                          >
-                            <option value="">-</option>
-                            {col.options?.map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
+                          <div className="px-2 py-2">
+                            <BadgeSelect
+                              colId={col.id}
+                              value={value}
+                              options={col.options ?? []}
+                              onChange={(v) => handleCellUpdate(row.id, col.id, v)}
+                            />
+                          </div>
                         ) : col.type === "date" ? (
                           <input
                             type="date"

@@ -6,6 +6,7 @@ import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
+import { BadgeSelect } from "@/components/table/BadgeSelect";
 
 const TABS = ["전체", "예정", "상담중", "완료", "보류"];
 const INDUSTRY_OPTIONS = ["쇼핑몰", "병의원", "숙박업", "기업", "기타"];
@@ -169,15 +170,13 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                 <tr key={row.id} className={TABLE.tr(idx)}>
                   {/* 업체명 */}
                   <td className={TABLE.td}>
-                    <div className="px-2 py-2">
-                      <button
-                        onClick={() => goToClients(row.data["업체명"] || "")}
-                        title="클라이언트 관리에서 보기"
-                        className="text-sm text-[var(--accent)] hover:underline text-left truncate block w-full"
-                      >
-                        {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => goToClients(row.data["업체명"] || "")}
+                      title="클라이언트 관리에서 보기"
+                      className="w-full px-2 py-2 text-sm text-[var(--accent)] hover:underline text-left truncate block"
+                    >
+                      {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
+                    </button>
                   </td>
                   {/* 이름 */}
                   <td className={TABLE.td}>
@@ -193,10 +192,9 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                   </td>
                   {/* 업종 */}
                   <td className={TABLE.td}>
-                    <select value={row.data["업종"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "업종", e.target.value)} className={TABLE.cellSelect}>
-                      <option value="">-</option>
-                      {INDUSTRY_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
+                    <div className="px-2 py-2">
+                      <BadgeSelect colId="업종" value={row.data["업종"] ?? ""} options={INDUSTRY_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "업종", v)} />
+                    </div>
                   </td>
                   {/* 예산범위 */}
                   <td className={TABLE.td}>
@@ -208,10 +206,9 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                   </td>
                   {/* 진행여부 */}
                   <td className={TABLE.td}>
-                    <select value={row.data["진행여부"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "진행여부", e.target.value)} className={TABLE.cellSelect}>
-                      <option value="">-</option>
-                      {STATUS_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
+                    <div className="px-2 py-2">
+                      <BadgeSelect colId="진행여부" value={row.data["진행여부"] ?? ""} options={STATUS_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "진행여부", v)} />
+                    </div>
                   </td>
                   {/* 등록일 */}
                   <td className={TABLE.td}>

@@ -5,6 +5,7 @@ import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
+import { BADGE_COLORS } from "@/components/table/BadgeSelect";
 
 const CHECKLIST_COLS = [
   { id: "업체명", defaultWidth: 140 },
@@ -286,22 +287,11 @@ function AddModal({
 
 // ── Industry badge ────────────────────────────────────────────────────────────
 
-const INDUSTRY_BADGE: Record<string, string> = {
-  쇼핑몰: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  병의원: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  숙박업: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-  기업:   "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-};
-const BADGE_DEFAULT = "bg-[var(--bg-secondary)] text-[var(--fg-muted)]";
-
 function IndustryBadge({ value }: { value: string }) {
   if (!value) return <span className="text-[var(--fg-muted)]">-</span>;
+  const colorClass = BADGE_COLORS["업종"][value] ?? "bg-[var(--bg-secondary)] text-[var(--fg-muted)]";
   return (
-    <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        INDUSTRY_BADGE[value] ?? BADGE_DEFAULT
-      }`}
-    >
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${colorClass}`}>
       {value}
     </span>
   );
