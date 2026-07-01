@@ -173,7 +173,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                     <button
                       onClick={() => goToClients(row.data["업체명"] || "")}
                       title="클라이언트 관리에서 보기"
-                      className="w-full px-2 py-2 text-sm text-[var(--accent)] hover:underline text-left truncate block"
+                      className="w-full px-2 py-2 text-sm font-semibold text-[var(--accent)] hover:underline text-left truncate block"
                     >
                       {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
                     </button>

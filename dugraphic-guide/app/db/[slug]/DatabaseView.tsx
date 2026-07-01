@@ -258,7 +258,7 @@ export default function DatabaseView({
                             type="text"
                             value={value}
                             onChange={(e) => handleCellUpdate(row.id, col.id, e.target.value)}
-                            className={TABLE.cellInput}
+                            className={`${TABLE.cellInput}${col.id === "업체명" ? " font-semibold" : ""}`}
                             placeholder="-"
                           />
                         )}
