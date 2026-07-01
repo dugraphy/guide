@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 
@@ -20,6 +21,7 @@ export default function SignupPage() {
   const [done, setDone] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef<TurnstileHandle>(null);
+  const router = useRouter();
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +36,7 @@ export default function SignupPage() {
     }
     setLoading(true);
     setError("");
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -47,6 +49,10 @@ export default function SignupPage() {
       setLoading(false);
       setCaptchaToken("");
       turnstileRef.current?.reset();
+    } else if (data.session) {
+      // 이메일 인증(Confirm email)이 꺼져 있어 signUp 즉시 세션이 발급됨 — 바로 로그인 처리
+      router.push("/");
+      router.refresh();
     } else {
       setDone(true);
     }
@@ -56,11 +62,10 @@ export default function SignupPage() {
     return (
       <div className="flex flex-1 items-center justify-center min-h-screen">
         <div className="w-full max-w-sm px-8 py-10 text-center bg-[var(--bg)] border border-[var(--border)] rounded-xl shadow-sm">
-          <p className="text-2xl mb-3">✉️</p>
-          <h1 className="text-lg font-bold text-[var(--fg)] mb-3">이메일을 확인해주세요</h1>
+          <p className="text-2xl mb-3">✅</p>
+          <h1 className="text-lg font-bold text-[var(--fg)] mb-3">회원가입이 완료되었습니다</h1>
           <p className="text-sm text-[var(--fg-muted)] mb-6 leading-relaxed">
-            <span className="font-medium text-[var(--fg)]">{email}</span>로<br />
-            인증 링크를 보냈습니다.
+            이제 로그인해주세요.
           </p>
           <Link href="/login" className="text-sm text-[var(--accent)] hover:underline">
             로그인 페이지로 이동 →
