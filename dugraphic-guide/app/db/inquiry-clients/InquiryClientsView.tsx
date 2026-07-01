@@ -6,7 +6,7 @@ import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
-import { BadgeSelect } from "@/components/table/BadgeSelect";
+import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
 
 const TABS = ["전체", "예정", "상담중", "완료", "보류"];
 const INDUSTRY_OPTIONS = ["쇼핑몰", "병의원", "숙박업", "기업", "기타"];
@@ -30,9 +30,10 @@ interface Props {
   db: DatabaseDef;
   initialRows: DatabaseRow[];
   initialTab: string;
+  canEdit: boolean;
 }
 
-export default function InquiryClientsView({ db, initialRows, initialTab }: Props) {
+export default function InquiryClientsView({ db, initialRows, initialTab, canEdit }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const rowsRef = useRef<DatabaseRow[]>(initialRows);
@@ -116,13 +117,15 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
       <div className="px-8 pt-8 pb-0 shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
-          <button
-            onClick={handleAddRow}
-            className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
-          >
-            <span className="text-base font-light leading-none">+</span>
-            문의 추가
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleAddRow}
+              className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
+            >
+              <span className="text-base font-light leading-none">+</span>
+              문의 추가
+            </button>
+          )}
         </div>
         <div className="flex">
           {TABS.map((t) => (
@@ -162,7 +165,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                   </ResizableTh>
                 ))}
                 <th className={TABLE.thSpacer} />
-                <th className={TABLE.thAction} style={{ width: 40 }} />
+                {canEdit && <th className={TABLE.thAction} style={{ width: 40 }} />}
               </tr>
             </thead>
             <tbody>
@@ -180,45 +183,79 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                   </td>
                   {/* 이름 */}
                   <td className={TABLE.td}>
-                    <input type="text" value={row.data["이름"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "이름", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    {canEdit ? (
+                      <input type="text" value={row.data["이름"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "이름", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    ) : (
+                      <span className={TABLE.cellReadOnly}>{row.data["이름"] || "-"}</span>
+                    )}
                   </td>
                   {/* 연락처 */}
                   <td className={TABLE.td}>
-                    <input type="text" value={row.data["연락처"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "연락처", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    {canEdit ? (
+                      <input type="text" value={row.data["연락처"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "연락처", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    ) : (
+                      <span className={TABLE.cellReadOnly}>{row.data["연락처"] || "-"}</span>
+                    )}
                   </td>
                   {/* 상담목적 */}
                   <td className={TABLE.td}>
-                    <input type="text" value={row.data["상담목적"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "상담목적", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    {canEdit ? (
+                      <input type="text" value={row.data["상담목적"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "상담목적", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    ) : (
+                      <span className={TABLE.cellReadOnly}>{row.data["상담목적"] || "-"}</span>
+                    )}
                   </td>
                   {/* 업종 */}
                   <td className={TABLE.td}>
                     <div className="px-2 py-2">
-                      <BadgeSelect colId="업종" value={row.data["업종"] ?? ""} options={INDUSTRY_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "업종", v)} />
+                      {canEdit ? (
+                        <BadgeSelect colId="업종" value={row.data["업종"] ?? ""} options={INDUSTRY_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "업종", v)} />
+                      ) : (
+                        <StaticBadge colId="업종" value={row.data["업종"] ?? ""} />
+                      )}
                     </div>
                   </td>
                   {/* 예산범위 */}
                   <td className={TABLE.td}>
-                    <input type="text" value={row.data["예산범위"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "예산범위", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    {canEdit ? (
+                      <input type="text" value={row.data["예산범위"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "예산범위", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    ) : (
+                      <span className={TABLE.cellReadOnly}>{row.data["예산범위"] || "-"}</span>
+                    )}
                   </td>
                   {/* 희망기간 */}
                   <td className={TABLE.td}>
-                    <input type="text" value={row.data["희망기간"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "희망기간", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    {canEdit ? (
+                      <input type="text" value={row.data["희망기간"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "희망기간", e.target.value)} className={TABLE.cellInput} placeholder="-" />
+                    ) : (
+                      <span className={TABLE.cellReadOnly}>{row.data["희망기간"] || "-"}</span>
+                    )}
                   </td>
                   {/* 진행여부 */}
                   <td className={TABLE.td}>
                     <div className="px-2 py-2">
-                      <BadgeSelect colId="진행여부" value={row.data["진행여부"] ?? ""} options={STATUS_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "진행여부", v)} />
+                      {canEdit ? (
+                        <BadgeSelect colId="진행여부" value={row.data["진행여부"] ?? ""} options={STATUS_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "진행여부", v)} />
+                      ) : (
+                        <StaticBadge colId="진행여부" value={row.data["진행여부"] ?? ""} />
+                      )}
                     </div>
                   </td>
                   {/* 등록일 */}
                   <td className={TABLE.td}>
-                    <input type="date" value={row.data["등록일"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "등록일", e.target.value)} className={TABLE.cellSelect} />
+                    {canEdit ? (
+                      <input type="date" value={row.data["등록일"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "등록일", e.target.value)} className={TABLE.cellSelect} />
+                    ) : (
+                      <span className={TABLE.cellReadOnly}>{row.data["등록일"] || "-"}</span>
+                    )}
                   </td>
                   {/* 삭제 */}
                   <td className={TABLE.tdSpacer} />
-                  <td className={TABLE.tdAction}>
-                    <button onClick={(e) => handleDelete(row.id, e)} title="삭제" className={TABLE.deleteBtn}>×</button>
-                  </td>
+                  {canEdit && (
+                    <td className={TABLE.tdAction}>
+                      <button onClick={(e) => handleDelete(row.id, e)} title="삭제" className={TABLE.deleteBtn}>×</button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

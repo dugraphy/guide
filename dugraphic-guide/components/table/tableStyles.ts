@@ -17,4 +17,6 @@ export const TABLE = {
     "w-full px-2 py-2 bg-transparent outline-none text-[var(--fg)] text-sm cursor-pointer",
   deleteBtn:
     "opacity-0 group-hover:opacity-100 text-[var(--fg-muted)] hover:text-red-500 w-full py-2 transition-all text-base leading-none",
+  cellReadOnly:
+    "block w-full px-2 py-2 text-[var(--fg)] text-sm",
 } as const;

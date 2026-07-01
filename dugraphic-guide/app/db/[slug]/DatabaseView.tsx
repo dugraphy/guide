@@ -6,7 +6,7 @@ import type { DatabaseDef, DatabaseRow, Column } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
-import { BadgeSelect } from "@/components/table/BadgeSelect";
+import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
 
 const SLUG_STORAGE_KEY: Record<string, string> = {
   clients: "column-widths-companies",
@@ -25,6 +25,7 @@ interface Props {
   initialStatus: string;
   initialIndustry: string;
   initialHighlight?: string;
+  canEdit: boolean;
 }
 
 export default function DatabaseView({
@@ -33,6 +34,7 @@ export default function DatabaseView({
   initialStatus,
   initialIndustry,
   initialHighlight,
+  canEdit,
 }: Props) {
   const router = useRouter();
 
@@ -156,13 +158,15 @@ export default function DatabaseView({
       <div className="px-8 pt-8 pb-0 shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
-          <button
-            onClick={handleAddRow}
-            className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
-          >
-            <span className="text-base font-light leading-none">+</span>
-            행 추가
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleAddRow}
+              className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
+            >
+              <span className="text-base font-light leading-none">+</span>
+              행 추가
+            </button>
+          )}
         </div>
         <div className="flex items-center justify-between">
           {statusTabs ? (
@@ -219,7 +223,7 @@ export default function DatabaseView({
                   </ResizableTh>
                 ))}
                 <th className={TABLE.thSpacer} />
-                <th className={TABLE.thAction} style={{ width: 40 }} />
+                {canEdit && <th className={TABLE.thAction} style={{ width: 40 }} />}
               </tr>
             </thead>
             <tbody>
@@ -239,21 +243,25 @@ export default function DatabaseView({
                       <td key={col.id} className={TABLE.td}>
                         {col.type === "select" ? (
                           <div className="px-2 py-2">
-                            <BadgeSelect
-                              colId={col.id}
-                              value={value}
-                              options={col.options ?? []}
-                              onChange={(v) => handleCellUpdate(row.id, col.id, v)}
-                            />
+                            {canEdit ? (
+                              <BadgeSelect
+                                colId={col.id}
+                                value={value}
+                                options={col.options ?? []}
+                                onChange={(v) => handleCellUpdate(row.id, col.id, v)}
+                              />
+                            ) : (
+                              <StaticBadge colId={col.id} value={value} />
+                            )}
                           </div>
-                        ) : col.type === "date" ? (
+                        ) : canEdit && col.type === "date" ? (
                           <input
                             type="date"
                             value={value}
                             onChange={(e) => handleCellUpdate(row.id, col.id, e.target.value)}
                             className={TABLE.cellSelect}
                           />
-                        ) : (
+                        ) : canEdit ? (
                           <input
                             type="text"
                             value={value}
@@ -261,20 +269,28 @@ export default function DatabaseView({
                             className={`${TABLE.cellInput}${col.id === "업체명" ? " font-semibold" : ""}`}
                             placeholder="-"
                           />
+                        ) : (
+                          <span
+                            className={`${TABLE.cellReadOnly}${col.id === "업체명" ? " font-semibold" : ""}`}
+                          >
+                            {value || "-"}
+                          </span>
                         )}
                       </td>
                     );
                   })}
                   <td className={TABLE.tdSpacer} />
-                  <td className={TABLE.tdAction}>
-                    <button
-                      onClick={() => handleDeleteRow(row.id)}
-                      title="행 삭제"
-                      className={TABLE.deleteBtn}
-                    >
-                      ×
-                    </button>
-                  </td>
+                  {canEdit && (
+                    <td className={TABLE.tdAction}>
+                      <button
+                        onClick={() => handleDeleteRow(row.id)}
+                        title="행 삭제"
+                        className={TABLE.deleteBtn}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

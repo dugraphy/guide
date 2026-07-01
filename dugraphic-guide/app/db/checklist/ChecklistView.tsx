@@ -49,10 +49,12 @@ function ViewModal({
   row,
   onMemoSave,
   onClose,
+  canEdit,
 }: {
   row: DatabaseRow;
   onMemoSave: (memo: string) => Promise<void>;
   onClose: () => void;
+  canEdit: boolean;
 }) {
   const [memo, setMemo] = useState(row.data["메모"] ?? "");
   const [saving, setSaving] = useState(false);
@@ -105,22 +107,30 @@ function ViewModal({
         <p className="text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-wide mb-1.5">
           내부 메모
         </p>
-        <textarea
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          rows={3}
-          placeholder="팀 내부용 메모를 입력하세요"
-          className="w-full bg-transparent text-sm text-[var(--fg)] outline-none resize-none placeholder:text-[var(--fg-muted)]/60"
-        />
-        <div className="flex justify-end mt-1">
-          <button
-            onClick={handleSaveMemo}
-            disabled={saving}
-            className="text-xs px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {saving ? "저장 중..." : saved ? "저장됨 ✓" : "저장"}
-          </button>
-        </div>
+        {canEdit ? (
+          <>
+            <textarea
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              rows={3}
+              placeholder="팀 내부용 메모를 입력하세요"
+              className="w-full bg-transparent text-sm text-[var(--fg)] outline-none resize-none placeholder:text-[var(--fg-muted)]/60"
+            />
+            <div className="flex justify-end mt-1">
+              <button
+                onClick={handleSaveMemo}
+                disabled={saving}
+                className="text-xs px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {saving ? "저장 중..." : saved ? "저장됨 ✓" : "저장"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-[var(--fg)] whitespace-pre-wrap min-h-[1.25rem]">
+            {memo || <span className="text-[var(--fg-muted)]">메모가 없습니다.</span>}
+          </p>
+        )}
       </div>
 
       {/* 답변 내용 */}
@@ -302,9 +312,10 @@ function IndustryBadge({ value }: { value: string }) {
 interface Props {
   db: DatabaseDef;
   initialRows: DatabaseRow[];
+  canEdit: boolean;
 }
 
-export default function ChecklistView({ db, initialRows }: Props) {
+export default function ChecklistView({ db, initialRows, canEdit }: Props) {
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const [selectedRow, setSelectedRow] = useState<DatabaseRow | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -378,13 +389,15 @@ export default function ChecklistView({ db, initialRows }: Props) {
       <div className="px-8 pt-8 pb-4 shrink-0 border-b border-[var(--border)]">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
-          >
-            <span className="text-base font-light leading-none">+</span>
-            새 상담 기록
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
+            >
+              <span className="text-base font-light leading-none">+</span>
+              새 상담 기록
+            </button>
+          )}
         </div>
 
         {/* 검색 / 필터 */}
@@ -438,7 +451,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
                   <ResizableTh colId="업종"   width={getWidth("업종")}   onResizeStart={startResize}>업종</ResizableTh>
                   <ResizableTh colId="작성일" width={getWidth("작성일")} onResizeStart={startResize}>작성일</ResizableTh>
                   <th className={TABLE.thSpacer} />
-                  <th className={TABLE.thAction} style={{ width: 40 }} />
+                  {canEdit && <th className={TABLE.thAction} style={{ width: 40 }} />}
                 </tr>
               </thead>
               <tbody>
@@ -469,15 +482,17 @@ export default function ChecklistView({ db, initialRows }: Props) {
                       </span>
                     </td>
                     <td className={TABLE.tdSpacer} />
-                    <td className={TABLE.tdAction}>
-                      <button
-                        onClick={(e) => handleDelete(row.id, e)}
-                        title="삭제"
-                        className={TABLE.deleteBtn}
-                      >
-                        ×
-                      </button>
-                    </td>
+                    {canEdit && (
+                      <td className={TABLE.tdAction}>
+                        <button
+                          onClick={(e) => handleDelete(row.id, e)}
+                          title="삭제"
+                          className={TABLE.deleteBtn}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -493,6 +508,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
             row={selectedRow}
             onMemoSave={handleMemoSave}
             onClose={() => setSelectedRow(null)}
+            canEdit={canEdit}
           />
         </Modal>
       )}

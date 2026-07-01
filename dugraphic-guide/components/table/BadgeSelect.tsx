@@ -23,14 +23,14 @@ export const BADGE_COLORS: Record<string, Record<string, string>> = {
   },
 };
 
-interface Props {
+interface BadgeSelectProps {
   colId: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
 }
 
-export function BadgeSelect({ colId, value, options, onChange }: Props) {
+export function BadgeSelect({ colId, value, options, onChange }: BadgeSelectProps) {
   const map = BADGE_COLORS[colId] ?? {};
   const colorClass = value ? (map[value] ?? FALLBACK) : "text-[var(--fg-muted)]";
   return (
@@ -44,5 +44,16 @@ export function BadgeSelect({ colId, value, options, onChange }: Props) {
         <option key={opt} value={opt}>{opt}</option>
       ))}
     </select>
+  );
+}
+
+export function StaticBadge({ colId, value }: { colId: string; value: string }) {
+  if (!value) return <span className="text-[var(--fg-muted)] text-xs">-</span>;
+  const map = BADGE_COLORS[colId] ?? {};
+  const colorClass = map[value] ?? FALLBACK;
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${colorClass}`}>
+      {value}
+    </span>
   );
 }

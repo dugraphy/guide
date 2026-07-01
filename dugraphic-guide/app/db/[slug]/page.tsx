@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getDatabase, getRows } from "@/lib/databases";
+import { getCanEdit } from "@/lib/auth";
 import DatabaseView from "./DatabaseView";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function DbPage({
   const db = await getDatabase(slug);
   if (!db) notFound();
 
-  const rows = await getRows(db.id);
+  const [rows, canEdit] = await Promise.all([getRows(db.id), getCanEdit()]);
 
   return (
     <DatabaseView
@@ -26,6 +27,7 @@ export default async function DbPage({
       initialStatus={typeof status === "string" ? status : "전체"}
       initialIndustry={typeof 업종 === "string" ? 업종 : ""}
       initialHighlight={typeof highlight === "string" ? highlight : undefined}
+      canEdit={canEdit}
     />
   );
 }
