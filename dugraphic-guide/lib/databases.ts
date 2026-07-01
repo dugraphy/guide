@@ -31,8 +31,9 @@ import { supabase } from "@/lib/supabase";
 export interface Column {
   id: string;
   name: string;
-  type: "text" | "select" | "date";
+  type: "text" | "select" | "date" | "json";
   options?: string[];
+  questions?: string[];
 }
 
 export interface DatabaseDef {
@@ -76,6 +77,35 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
       { id: "메모", name: "메모", type: "text" },
     ],
   },
+  {
+    name: "상담 체크리스트",
+    slug: "checklist",
+    columns: [
+      { id: "업체명", name: "업체명", type: "text" },
+      {
+        id: "업종",
+        name: "업종",
+        type: "select",
+        options: ["병의원", "쇼핑몰", "숙박업", "기업", "기타"],
+      },
+      {
+        id: "답변",
+        name: "답변",
+        type: "json",
+        questions: [
+          "현재 웹사이트 운영 여부",
+          "원하는 제작물 종류",
+          "선호 디자인 스타일",
+          "참고 사이트 또는 레퍼런스",
+          "예산 범위",
+          "희망 완료 일정",
+          "주요 타겟 고객층",
+          "추가 요청 사항",
+        ],
+      },
+      { id: "작성일", name: "작성일", type: "date" },
+    ],
+  },
 ];
 
 async function seedDatabases() {
@@ -99,7 +129,10 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
   if (error) throw new Error(`getDatabases: ${error.message}`);
 
   const list = (data ?? []) as DatabaseDef[];
-  if (list.length === 0) {
+  const existingSlugs = new Set(list.map((d) => d.slug));
+  const needsSeed = SEED_DATABASES.some((d) => !existingSlugs.has(d.slug));
+
+  if (needsSeed) {
     await seedDatabases();
     const { data: seeded } = await supabase
       .from("databases")
@@ -107,6 +140,7 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
       .order("name");
     return (seeded ?? []) as DatabaseDef[];
   }
+
   return list;
 }
 
