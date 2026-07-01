@@ -62,7 +62,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
         id: "업종",
         name: "업종",
         type: "select",
-        options: ["디자인", "개발", "마케팅", "기타"],
+        options: ["쇼핑몰", "병의원", "숙박업", "기업", "기타"],
       },
       { id: "담당자", name: "담당자", type: "text" },
       { id: "연락처", name: "연락처", type: "text" },
@@ -145,6 +145,72 @@ async function seedDatabases() {
   }
 }
 
+// Migrate "clients" rows that still use old industry values.
+const OLD_CLIENT_INDUSTRIES = new Set(["디자인", "개발", "마케팅"]);
+
+async function migrateClientsIndustry(clientsDbId: string) {
+  const { data: rows } = await supabase
+    .from("database_rows")
+    .select("id, data")
+    .eq("database_id", clientsDbId);
+
+  const stale = (rows ?? []).filter((r) =>
+    OLD_CLIENT_INDUSTRIES.has((r.data as Record<string, string>)["업종"] ?? "")
+  );
+  if (!stale.length) return;
+
+  await Promise.all(
+    stale.map((row) =>
+      supabase
+        .from("database_rows")
+        .update({ data: { ...(row.data as Record<string, string>), 업종: "기타" } })
+        .eq("id", row.id)
+    )
+  );
+}
+
+// Sync 메모 between "clients" and "checklist" when it changes on either side.
+export async function syncMemoAcrossDBs(
+  fromSlug: string,
+  업체명: string,
+  메모: string
+): Promise<void> {
+  if (!업체명 || (fromSlug !== "clients" && fromSlug !== "checklist")) return;
+  const toSlug = fromSlug === "clients" ? "checklist" : "clients";
+
+  const { data: targetDb } = await supabase
+    .from("databases")
+    .select("id")
+    .eq("slug", toSlug)
+    .single();
+  if (!targetDb) return;
+
+  const { data: allRows } = await supabase
+    .from("database_rows")
+    .select("id, data")
+    .eq("database_id", targetDb.id);
+
+  const matches = (allRows ?? []).filter(
+    (r) => (r.data as Record<string, string>)["업체명"] === 업체명
+  );
+  if (!matches.length) return;
+
+  // For checklist: pick the row with the most recent 작성일.
+  const target =
+    toSlug === "checklist" && matches.length > 1
+      ? matches.reduce((best, r) => {
+          const bd = (best.data as Record<string, string>)["작성일"] ?? "";
+          const rd = (r.data as Record<string, string>)["작성일"] ?? "";
+          return rd > bd ? r : best;
+        })
+      : matches[0];
+
+  await supabase
+    .from("database_rows")
+    .update({ data: { ...(target.data as Record<string, string>), 메모 } })
+    .eq("id", target.id);
+}
+
 // ── 공개 API ─────────────────────────────────────────────────────────────────
 
 export async function getDatabases(): Promise<DatabaseDef[]> {
@@ -165,6 +231,23 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
       .select("id, name, slug, columns")
       .order("name");
     return (seeded ?? []) as DatabaseDef[];
+  }
+
+  // Auto-sync column schemas: when seed options differ from the DB, update and migrate.
+  for (const seedDb of SEED_DATABASES) {
+    const existing = list.find((d) => d.slug === seedDb.slug);
+    if (!existing) continue;
+
+    const seedOpts = JSON.stringify(
+      Object.fromEntries(seedDb.columns.filter((c) => c.options).map((c) => [c.id, c.options]))
+    );
+    const existOpts = JSON.stringify(
+      Object.fromEntries(existing.columns.filter((c) => c.options).map((c) => [c.id, c.options]))
+    );
+    if (seedOpts === existOpts) continue;
+
+    await supabase.from("databases").update({ columns: seedDb.columns }).eq("slug", seedDb.slug);
+    if (seedDb.slug === "clients") await migrateClientsIndustry(existing.id);
   }
 
   return list;

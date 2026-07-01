@@ -1,12 +1,19 @@
-import { updateRow, deleteRow } from "@/lib/databases";
+import { updateRow, deleteRow, syncMemoAcrossDBs } from "@/lib/databases";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ slug: string; id: string }> }
 ) {
-  const { id } = await params;
+  const { slug, id } = await params;
   const data = (await request.json()) as Record<string, string>;
   const row = await updateRow(id, data);
+
+  // Sync 메모 between "clients" ↔ "checklist" when either side saves.
+  if ("메모" in data && (slug === "clients" || slug === "checklist")) {
+    const 업체명 = data["업체명"] ?? "";
+    await syncMemoAcrossDBs(slug, 업체명, data["메모"] ?? "");
+  }
+
   return Response.json(row);
 }
 
