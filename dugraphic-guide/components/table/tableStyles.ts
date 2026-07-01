@@ -5,6 +5,8 @@ export const TABLE = {
   thAction: "w-10 bg-[var(--bg-secondary)] border-b border-[var(--border)]",
   td: "border-b border-r border-[var(--border)] p-0",
   tdAction: "border-b border-[var(--border)] w-10 text-center",
+  thSpacer: "bg-[var(--bg-secondary)] border-b border-[var(--border)]",
+  tdSpacer: "border-b border-[var(--border)]",
   tr: (idx: number) =>
     `group transition-colors duration-150 hover:bg-[var(--hover)] ${
       idx % 2 === 1 ? "bg-[var(--bg-secondary)]/40" : ""

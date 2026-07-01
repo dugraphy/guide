@@ -197,21 +197,21 @@ export default function DatabaseView({
         <div className={TABLE.wrapper}>
           <table
             className={TABLE.table}
-            style={{ tableLayout: "fixed", width: totalWidth }}
+            style={{ tableLayout: "fixed", width: "100%", minWidth: totalWidth }}
           >
             <thead>
               <tr>
-                {db.columns.map((col, i) => (
+                {db.columns.map((col) => (
                   <ResizableTh
                     key={col.id}
                     colId={col.id}
                     width={getWidth(col.id)}
                     onResizeStart={startResize}
-                    noHandle={i === db.columns.length - 1}
                   >
                     {col.name}
                   </ResizableTh>
                 ))}
+                <th className={TABLE.thSpacer} />
                 <th className={TABLE.thAction} style={{ width: 40 }} />
               </tr>
             </thead>
@@ -260,6 +260,7 @@ export default function DatabaseView({
                       </td>
                     );
                   })}
+                  <td className={TABLE.tdSpacer} />
                   <td className={TABLE.tdAction}>
                     <button
                       onClick={() => handleDeleteRow(row.id)}

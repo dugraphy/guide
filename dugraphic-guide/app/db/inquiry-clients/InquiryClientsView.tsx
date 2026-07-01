@@ -138,21 +138,21 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
         <div className={TABLE.wrapper}>
           <table
             className={TABLE.table}
-            style={{ tableLayout: "fixed", width: totalWidth }}
+            style={{ tableLayout: "fixed", width: "100%", minWidth: totalWidth }}
           >
             <thead>
               <tr>
-                {COLS.map((col, i) => (
+                {COLS.map((col) => (
                   <ResizableTh
                     key={col.id}
                     colId={col.id}
                     width={getWidth(col.id)}
                     onResizeStart={startResize}
-                    noHandle={i === COLS.length - 1}
                   >
                     {col.label}
                   </ResizableTh>
                 ))}
+                <th className={TABLE.thSpacer} />
                 <th className={TABLE.thAction} style={{ width: 40 }} />
               </tr>
             </thead>
@@ -210,6 +210,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
                     <input type="date" value={row.data["등록일"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "등록일", e.target.value)} className={TABLE.cellSelect} />
                   </td>
                   {/* 삭제 */}
+                  <td className={TABLE.tdSpacer} />
                   <td className={TABLE.tdAction}>
                     <button onClick={(e) => handleDelete(row.id, e)} title="삭제" className={TABLE.deleteBtn}>×</button>
                   </td>

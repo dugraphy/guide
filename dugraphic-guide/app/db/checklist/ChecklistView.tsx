@@ -441,14 +441,15 @@ export default function ChecklistView({ db, initialRows }: Props) {
           <div className={TABLE.wrapper}>
             <table
               className={TABLE.table}
-              style={{ tableLayout: "fixed", width: totalWidth }}
+              style={{ tableLayout: "fixed", width: "100%", minWidth: totalWidth }}
             >
               <thead>
                 <tr>
                   <ResizableTh colId="업체명" width={getWidth("업체명")} onResizeStart={startResize}>업체명</ResizableTh>
                   <ResizableTh colId="메모"   width={getWidth("메모")}   onResizeStart={startResize}>메모</ResizableTh>
                   <ResizableTh colId="업종"   width={getWidth("업종")}   onResizeStart={startResize}>업종</ResizableTh>
-                  <ResizableTh colId="작성일" width={getWidth("작성일")} onResizeStart={startResize} noHandle>작성일</ResizableTh>
+                  <ResizableTh colId="작성일" width={getWidth("작성일")} onResizeStart={startResize}>작성일</ResizableTh>
+                  <th className={TABLE.thSpacer} />
                   <th className={TABLE.thAction} style={{ width: 40 }} />
                 </tr>
               </thead>
@@ -479,6 +480,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
                         {row.data["작성일"] || "-"}
                       </span>
                     </td>
+                    <td className={TABLE.tdSpacer} />
                     <td className={TABLE.tdAction}>
                       <button
                         onClick={(e) => handleDelete(row.id, e)}
