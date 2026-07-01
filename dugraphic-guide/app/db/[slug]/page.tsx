@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getDatabase, getRows } from "@/lib/databases";
 import DatabaseView from "./DatabaseView";
 
+export const dynamic = "force-dynamic";
+
 export default async function DbPage({
   params,
   searchParams,
