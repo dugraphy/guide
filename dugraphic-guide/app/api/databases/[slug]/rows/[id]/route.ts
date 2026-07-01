@@ -1,9 +1,13 @@
 import { updateRow, deleteRow, syncMemoAcrossDBs } from "@/lib/databases";
+import { requireOwnerOrForbidden } from "@/lib/auth";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ slug: string; id: string }> }
 ) {
+  const forbidden = await requireOwnerOrForbidden();
+  if (forbidden) return forbidden;
+
   const { slug, id } = await params;
   const data = (await request.json()) as Record<string, string>;
   const row = await updateRow(id, data);
@@ -21,6 +25,9 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ slug: string; id: string }> }
 ) {
+  const forbidden = await requireOwnerOrForbidden();
+  if (forbidden) return forbidden;
+
   const { id } = await params;
   await deleteRow(id);
   return new Response(null, { status: 204 });

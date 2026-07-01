@@ -1,15 +1,22 @@
 import { getPages } from "@/lib/pages";
 import { getDatabases } from "@/lib/databases";
+import { getSessionUser } from "@/lib/auth";
 import SidebarItem from "./SidebarItem";
 import PageSidebarItem from "./PageSidebarItem";
 import NewPageButton from "./NewPageButton";
+import AuthSection from "./AuthSection";
+import ShareButton from "./ShareButton";
 
 const NAV_ITEMS = [
   { href: "/", icon: "🏠", label: "홈" },
 ];
 
 export default async function Sidebar() {
-  const [pages, databases] = await Promise.all([getPages(), getDatabases()]);
+  const [pages, databases, { email, role }] = await Promise.all([
+    getPages(),
+    getDatabases(),
+    getSessionUser(),
+  ]);
 
   return (
     <aside
@@ -23,7 +30,7 @@ export default async function Sidebar() {
         <span className="font-semibold text-sm truncate">Dugraphic Guide</span>
       </div>
 
-      <nav className="flex flex-col gap-0.5 px-1 py-2">
+      <nav className="flex flex-col gap-0.5 px-1 py-2 flex-1">
         {NAV_ITEMS.map((item) => (
           <SidebarItem key={item.href} {...item} />
         ))}
@@ -63,7 +70,15 @@ export default async function Sidebar() {
             ))}
           </>
         )}
+
+        {role === "owner" && (
+          <div className="mt-4 px-1">
+            <ShareButton />
+          </div>
+        )}
       </nav>
+
+      <AuthSection email={email} role={role} />
     </aside>
   );
 }
