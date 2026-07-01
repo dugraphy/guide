@@ -16,6 +16,10 @@ export async function POST(request: Request) {
   }
 
   const 업체명 = body["업체명"] ?? "";
+  if (!업체명) {
+    return Response.json({ error: "업체명은 필수입니다" }, { status: 400 });
+  }
+
   const 이름 = body["이름"] ?? "";
   const 연락처 = body["연락처"] ?? "";
   const 상담목적 = body["상담 목적"] ?? "";
