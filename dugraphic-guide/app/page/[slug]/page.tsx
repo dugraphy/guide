@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import PageEditorWrapper from "@/components/editor/PageEditorWrapper";
 import { getPage } from "@/lib/pages";
+import { getCanEdit } from "@/lib/auth";
 
 export default async function PageRoute({
   params,
@@ -11,9 +12,9 @@ export default async function PageRoute({
 }) {
   const { slug } = await params;
   const { new: isNew } = await searchParams;
-  const page = await getPage(slug);
+  const [page, canEdit] = await Promise.all([getPage(slug), getCanEdit()]);
 
   if (!page) notFound();
 
-  return <PageEditorWrapper page={page} isNew={!!isNew} />;
+  return <PageEditorWrapper page={page} isNew={!!isNew} canEdit={canEdit} />;
 }

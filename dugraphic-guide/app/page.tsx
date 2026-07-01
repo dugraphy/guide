@@ -1,4 +1,5 @@
 import { getPage, upsertPage } from "@/lib/pages";
+import { getCanEdit } from "@/lib/auth";
 import PageEditorWrapper from "@/components/editor/PageEditorWrapper";
 
 const HOME_PAGE = {
@@ -17,5 +18,6 @@ export default async function HomePage() {
   }
   if (!page) return null;
 
-  return <PageEditorWrapper page={page} />;
+  const canEdit = await getCanEdit();
+  return <PageEditorWrapper page={page} canEdit={canEdit} />;
 }

@@ -18,9 +18,10 @@ const BlockEditor = dynamic(() => import("./BlockEditor"), {
 interface Props {
   page: PageData;
   isNew?: boolean;
+  canEdit: boolean;
 }
 
-export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
+export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }: Props) {
   const router = useRouter();
   const [page, setPage] = useState(initialPage);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
@@ -33,6 +34,7 @@ export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
   const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const performSave = useCallback(async () => {
+    if (!canEdit) return;
     setSaveStatus("saving");
     try {
       await fetch("/api/pages", {
@@ -47,7 +49,7 @@ export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
     } catch {
       setSaveStatus("idle");
     }
-  }, [router]);
+  }, [router, canEdit]);
 
   const handleSaveClick = useCallback(() => {
     if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
@@ -80,12 +82,13 @@ export default function PageEditorWrapper({ page: initialPage, isNew }: Props) {
         title={page.title}
         onTitleChange={handleTitleChange}
         isNew={isNew}
-        onSave={handleSaveClick}
+        onSave={canEdit ? handleSaveClick : undefined}
         saveStatus={saveStatus}
+        readOnly={!canEdit}
       />
       <div className="max-w-3xl px-14 py-4">
         <div className="border-t border-[var(--border)] mb-4" />
-        <BlockEditor page={page} onBodyChange={handleBodyChange} />
+        <BlockEditor page={page} onBodyChange={handleBodyChange} editable={canEdit} />
       </div>
     </>
   );

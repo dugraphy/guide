@@ -9,9 +9,10 @@ interface Props {
   href: string;
   icon: string;
   label: string;
+  canEdit: boolean;
 }
 
-export default function PageSidebarItem({ slug, href, icon, label }: Props) {
+export default function PageSidebarItem({ slug, href, icon, label, canEdit }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const isActive = pathname === href;
@@ -40,18 +41,20 @@ export default function PageSidebarItem({ slug, href, icon, label }: Props) {
         <span className="w-5 text-center text-base leading-none shrink-0">{icon}</span>
         <span className="truncate">{label}</span>
       </Link>
-      <button
-        onClick={handleDelete}
-        disabled={deleting}
-        title="페이지 삭제"
-        className="opacity-0 group-hover:opacity-100 shrink-0 w-6 h-6 mr-1 flex items-center justify-center rounded text-[var(--fg-muted)] hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-30"
-      >
-        {deleting ? "…" : (
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <path d="M2 3h8M5 3V2h2v1M4.5 3v6.5h3V3"/>
-          </svg>
-        )}
-      </button>
+      {canEdit && (
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          title="페이지 삭제"
+          className="opacity-0 group-hover:opacity-100 shrink-0 w-6 h-6 mr-1 flex items-center justify-center rounded text-[var(--fg-muted)] hover:text-red-500 hover:bg-red-50 transition-all disabled:opacity-30"
+        >
+          {deleting ? "…" : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M2 3h8M5 3V2h2v1M4.5 3v6.5h3V3"/>
+            </svg>
+          )}
+        </button>
+      )}
     </div>
   );
 }

@@ -33,9 +33,10 @@ function parseInitialContent(body: string) {
 interface Props {
   page: PageData;
   onBodyChange: (body: string) => void;
+  editable?: boolean;
 }
 
-export default function BlockEditor({ page, onBodyChange }: Props) {
+export default function BlockEditor({ page, onBodyChange, editable = true }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,43 +63,46 @@ export default function BlockEditor({ page, onBodyChange }: Props) {
       onChange={handleChange}
       theme="light"
       slashMenu={false}
+      editable={editable}
     >
-      <SuggestionMenuController
-        triggerCharacter="/"
-        getItems={async (query) => {
-          const defaults = getDefaultReactSlashMenuItems(editor);
-          const pageLinkItem = {
-            title: "페이지 링크",
-            group: "미디어",
-            icon: <span style={{ fontSize: "1.1em" }}>🔗</span>,
-            onItemClick: () => {
-              const pos = editor.getTextCursorPosition();
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (editor.insertBlocks as any)(
-                [
-                  {
-                    type: "pageLink",
-                    props: {
-                      pageSlug: "",
-                      pageTitle: "",
-                      pageIcon: "📄",
-                      pageDescription: "",
+      {editable && (
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={async (query) => {
+            const defaults = getDefaultReactSlashMenuItems(editor);
+            const pageLinkItem = {
+              title: "페이지 링크",
+              group: "미디어",
+              icon: <span style={{ fontSize: "1.1em" }}>🔗</span>,
+              onItemClick: () => {
+                const pos = editor.getTextCursorPosition();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor.insertBlocks as any)(
+                  [
+                    {
+                      type: "pageLink",
+                      props: {
+                        pageSlug: "",
+                        pageTitle: "",
+                        pageIcon: "📄",
+                        pageDescription: "",
+                      },
                     },
-                  },
-                ],
-                pos.block,
-                "after"
-              );
-            },
-          };
-          const all = [...defaults, pageLinkItem];
-          return query
-            ? all.filter((item) =>
-                item.title.toLowerCase().includes(query.toLowerCase())
-              )
-            : all;
-        }}
-      />
+                  ],
+                  pos.block,
+                  "after"
+                );
+              },
+            };
+            const all = [...defaults, pageLinkItem];
+            return query
+              ? all.filter((item) =>
+                  item.title.toLowerCase().includes(query.toLowerCase())
+                )
+              : all;
+          }}
+        />
+      )}
     </BlockNoteView>
   );
 }

@@ -48,10 +48,11 @@ export default async function Sidebar() {
             href={`/page/${page.slug}`}
             icon={page.icon}
             label={page.title}
+            canEdit={role === "owner"}
           />
         ))}
 
-        <NewPageButton />
+        {role === "owner" && <NewPageButton />}
 
         {databases.length > 0 && (
           <>

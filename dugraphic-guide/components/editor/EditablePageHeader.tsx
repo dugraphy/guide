@@ -17,6 +17,7 @@ interface Props {
   isNew?: boolean;
   onSave?: () => void;
   saveStatus?: SaveStatus;
+  readOnly?: boolean;
 }
 
 export default function EditablePageHeader({
@@ -26,6 +27,7 @@ export default function EditablePageHeader({
   isNew,
   onSave,
   saveStatus = "idle",
+  readOnly,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +64,7 @@ export default function EditablePageHeader({
         value={title}
         onChange={(e) => onTitleChange(e.target.value)}
         placeholder="제목 없음"
+        readOnly={readOnly}
         className="w-full text-4xl font-bold text-[var(--fg)] leading-tight mb-2 bg-transparent border-none outline-none placeholder:text-[var(--fg-muted)]"
       />
     </div>
