@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 
@@ -332,6 +333,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
   );
   const totalWidth =
     CHECKLIST_COLS.reduce((sum, c) => sum + getWidth(c.id), 0) + 40;
+  const isDesktop = useIsDesktop();
 
   const displayRows = (() => {
     let result = rows;
@@ -441,7 +443,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
           <div className={TABLE.wrapper}>
             <table
               className={TABLE.table}
-              style={{ tableLayout: "fixed", width: "100%", minWidth: totalWidth }}
+              style={{ tableLayout: "fixed", width: "100%", minWidth: isDesktop ? undefined : totalWidth }}
             >
               <thead>
                 <tr>

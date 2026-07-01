@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { DatabaseDef, DatabaseRow, Column } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 
@@ -105,6 +106,7 @@ export default function DatabaseView({
   const storageKey = SLUG_STORAGE_KEY[db.slug] ?? `column-widths-${db.slug}`;
   const { widths, startResize, getWidth } = useResizableColumns(storageKey, defaultWidths);
   const totalWidth = db.columns.reduce((sum, c) => sum + getWidth(c.id), 0) + 40;
+  const isDesktop = useIsDesktop();
 
   // ── cell update ───────────────────────────────────────────────────────────
   const handleCellUpdate = useCallback(
@@ -197,7 +199,7 @@ export default function DatabaseView({
         <div className={TABLE.wrapper}>
           <table
             className={TABLE.table}
-            style={{ tableLayout: "fixed", width: "100%", minWidth: totalWidth }}
+            style={{ tableLayout: "fixed", width: "100%", minWidth: isDesktop ? undefined : totalWidth }}
           >
             <thead>
               <tr>
