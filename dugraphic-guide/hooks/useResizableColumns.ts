@@ -10,23 +10,32 @@ export function useResizableColumns(
 ) {
   const defaultWidthsRef = useRef(defaultWidths);
 
-  const [widths, setWidths] = useState<Record<string, number>>(() => {
-    if (typeof window === "undefined") return defaultWidths;
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null");
-      if (saved && typeof saved === "object") return { ...defaultWidths, ...saved };
-    } catch {
-      /* ignore */
-    }
-    return defaultWidths;
-  });
+  // Always start with default widths so SSR and first client render match.
+  const [widths, setWidths] = useState<Record<string, number>>(defaultWidths);
+  const isMounted = useRef(false);
 
   const widthsRef = useRef(widths);
   useEffect(() => {
     widthsRef.current = widths;
   }, [widths]);
 
+  // Load saved widths from localStorage after mount (client-only).
   useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? "null");
+      if (saved && typeof saved === "object") {
+        setWidths((prev) => ({ ...prev, ...saved }));
+      }
+    } catch {
+      /* ignore */
+    }
+    isMounted.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  // Persist to localStorage whenever widths change (skip the initial mount).
+  useEffect(() => {
+    if (!isMounted.current) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(widths));
     } catch {
