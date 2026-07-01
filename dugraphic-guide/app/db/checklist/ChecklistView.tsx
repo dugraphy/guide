@@ -31,13 +31,13 @@ function Modal({
 
 // ── View modal ────────────────────────────────────────────────────────────────
 
+const EXCLUDED_KEYS = new Set(["업체명", "담당자", "연락처", "업종", "작성일"]);
+
 function ViewModal({
   row,
-  questions,
   onClose,
 }: {
   row: DatabaseRow;
-  questions: string[];
   onClose: () => void;
 }) {
   let answers: Record<string, string> = {};
@@ -46,6 +46,10 @@ function ViewModal({
   } catch {
     /* ignore */
   }
+
+  const entries = Object.entries(answers).filter(
+    ([key, value]) => !EXCLUDED_KEYS.has(key) && value !== ""
+  );
 
   return (
     <div className="p-6">
@@ -68,23 +72,19 @@ function ViewModal({
       </div>
 
       <div className="border-t border-[var(--border)] pt-4 space-y-4">
-        {questions.length > 0 ? (
-          questions.map((q) => (
-            <div key={q}>
+        {entries.length > 0 ? (
+          entries.map(([key, value]) => (
+            <div key={key}>
               <p className="text-xs font-semibold text-[var(--fg-muted)] uppercase tracking-wide mb-1">
-                {q}
+                {key}
               </p>
               <p className="text-sm text-[var(--fg)] whitespace-pre-wrap min-h-[1.25rem]">
-                {answers[q] || (
-                  <span className="text-[var(--fg-muted)] italic">미입력</span>
-                )}
+                {value}
               </p>
             </div>
           ))
         ) : (
-          <pre className="text-xs text-[var(--fg-muted)] bg-[var(--bg-secondary)] p-3 rounded overflow-auto">
-            {JSON.stringify(answers, null, 2)}
-          </pre>
+          <p className="text-sm text-[var(--fg-muted)] italic">답변 내용이 없습니다.</p>
         )}
       </div>
     </div>
@@ -347,7 +347,6 @@ export default function ChecklistView({ db, initialRows }: Props) {
         <Modal onClose={() => setSelectedRow(null)}>
           <ViewModal
             row={selectedRow}
-            questions={questions}
             onClose={() => setSelectedRow(null)}
           />
         </Modal>
