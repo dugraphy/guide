@@ -57,7 +57,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
     name: "업체 관리",
     slug: "clients",
     columns: [
-      { id: "업체명", name: "업체명", type: "text" },
+      { id: "업체명", name: "클라이언트명", type: "text" },
       {
         id: "업종",
         name: "업종",
@@ -81,7 +81,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
     name: "문의 클라이언트",
     slug: "inquiry-clients",
     columns: [
-      { id: "업체명", name: "업체명", type: "text" },
+      { id: "업체명", name: "클라이언트명", type: "text" },
       { id: "이름", name: "이름", type: "text" },
       { id: "연락처", name: "연락처", type: "text" },
       { id: "상담목적", name: "상담목적", type: "text" },
@@ -106,7 +106,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
     name: "상담 체크리스트",
     slug: "checklist",
     columns: [
-      { id: "업체명", name: "업체명", type: "text" },
+      { id: "업체명", name: "클라이언트명", type: "text" },
       { id: "메모", name: "메모", type: "text" },
       {
         id: "업종",
@@ -238,13 +238,9 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
     const existing = list.find((d) => d.slug === seedDb.slug);
     if (!existing) continue;
 
-    const seedOpts = JSON.stringify(
-      Object.fromEntries(seedDb.columns.filter((c) => c.options).map((c) => [c.id, c.options]))
-    );
-    const existOpts = JSON.stringify(
-      Object.fromEntries(existing.columns.filter((c) => c.options).map((c) => [c.id, c.options]))
-    );
-    if (seedOpts === existOpts) continue;
+    const colKey = (cols: Column[]) =>
+      JSON.stringify(cols.map((c) => ({ id: c.id, name: c.name, options: c.options ?? null })));
+    if (colKey(seedDb.columns) === colKey(existing.columns)) continue;
 
     await supabase.from("databases").update({ columns: seedDb.columns }).eq("slug", seedDb.slug);
     if (seedDb.slug === "clients") await migrateClientsIndustry(existing.id);

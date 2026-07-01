@@ -199,14 +199,14 @@ function AddModal({
       <div className="space-y-3 mb-5">
         <div>
           <label className="text-xs font-medium text-[var(--fg-muted)] block mb-1">
-            업체명
+            클라이언트명
           </label>
           <input
             type="text"
             value={form["업체명"] ?? ""}
             onChange={(e) => set("업체명", e.target.value)}
             className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            placeholder="업체명 입력"
+            placeholder="클라이언트명 입력"
             autoFocus
           />
         </div>
@@ -403,7 +403,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="업체명 검색"
+            placeholder="클라이언트명 검색"
             className="text-sm border border-[var(--border)] rounded px-3 py-1.5 bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--fg-muted)] w-44"
           />
           <select
@@ -443,7 +443,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
             >
               <thead>
                 <tr>
-                  <ResizableTh colId="업체명" width={getWidth("업체명")} onResizeStart={startResize}>업체명</ResizableTh>
+                  <ResizableTh colId="업체명" width={getWidth("업체명")} onResizeStart={startResize}>클라이언트명</ResizableTh>
                   <ResizableTh colId="메모"   width={getWidth("메모")}   onResizeStart={startResize}>메모</ResizableTh>
                   <ResizableTh colId="업종"   width={getWidth("업종")}   onResizeStart={startResize}>업종</ResizableTh>
                   <ResizableTh colId="작성일" width={getWidth("작성일")} onResizeStart={startResize}>작성일</ResizableTh>

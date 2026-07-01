@@ -12,7 +12,7 @@ const INDUSTRY_OPTIONS = ["쇼핑몰", "병의원", "숙박업", "기업", "기�
 const STATUS_OPTIONS = ["예정", "상담중", "완료", "보류"];
 
 const COLS = [
-  { id: "업체명",   label: "업체명",   defaultWidth: 140 },
+  { id: "업체명",   label: "클라이언트명", defaultWidth: 140 },
   { id: "이름",    label: "이름",     defaultWidth: 90  },
   { id: "연락처",  label: "연락처",   defaultWidth: 130 },
   { id: "상담목적", label: "상담목적", defaultWidth: 180 },
