@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { DatabaseDef, DatabaseRow, Column } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 
@@ -104,9 +103,7 @@ export default function DatabaseView({
   }, [db.columns]);
 
   const storageKey = SLUG_STORAGE_KEY[db.slug] ?? `column-widths-${db.slug}`;
-  const { widths, startResize, getWidth } = useResizableColumns(storageKey, defaultWidths);
-  const totalWidth = db.columns.reduce((sum, c) => sum + getWidth(c.id), 0) + 40;
-  const isDesktop = useIsDesktop();
+  const { widths, containerRef, startResize, getWidth, totalWidth, allowScroll } = useResizableColumns(storageKey, defaultWidths);
 
   // ── cell update ───────────────────────────────────────────────────────────
   const handleCellUpdate = useCallback(
@@ -196,10 +193,10 @@ export default function DatabaseView({
 
       {/* Table */}
       <div className="flex-1 overflow-auto px-8 py-4">
-        <div className={TABLE.wrapper}>
+        <div ref={containerRef} className={TABLE.wrapper}>
           <table
             className={TABLE.table}
-            style={{ tableLayout: "fixed", width: "100%", minWidth: isDesktop ? undefined : totalWidth }}
+            style={{ tableLayout: "fixed", width: "100%", minWidth: allowScroll ? totalWidth : undefined }}
           >
             <thead>
               <tr>

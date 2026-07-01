@@ -4,7 +4,6 @@ import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
-import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 
@@ -39,12 +38,10 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [tab, setTab] = useState(TABS.includes(initialTab as typeof TABS[number]) ? initialTab : "전체");
 
-  const { widths, startResize, getWidth } = useResizableColumns(
+  const { widths, containerRef, startResize, getWidth, totalWidth, allowScroll } = useResizableColumns(
     "column-widths-clients",
     DEFAULT_WIDTHS
   );
-  const totalWidth = COLS.reduce((sum, c) => sum + getWidth(c.id), 0) + 40;
-  const isDesktop = useIsDesktop();
 
   const displayRows = (() => {
     const filtered =
@@ -137,10 +134,10 @@ export default function InquiryClientsView({ db, initialRows, initialTab }: Prop
 
       {/* Table */}
       <div className="flex-1 overflow-auto px-8 py-4">
-        <div className={TABLE.wrapper}>
+        <div ref={containerRef} className={TABLE.wrapper}>
           <table
             className={TABLE.table}
-            style={{ tableLayout: "fixed", width: "100%", minWidth: isDesktop ? undefined : totalWidth }}
+            style={{ tableLayout: "fixed", width: "100%", minWidth: allowScroll ? totalWidth : undefined }}
           >
             <thead>
               <tr>
