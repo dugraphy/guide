@@ -229,6 +229,29 @@ function AddModal({
   );
 }
 
+// ── Industry badge ────────────────────────────────────────────────────────────
+
+const INDUSTRY_BADGE: Record<string, string> = {
+  쇼핑몰: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  병의원: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  숙박업: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  기업:   "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+};
+const BADGE_DEFAULT = "bg-[var(--bg-secondary)] text-[var(--fg-muted)]";
+
+function IndustryBadge({ value }: { value: string }) {
+  if (!value) return <span className="text-[var(--fg-muted)]">-</span>;
+  return (
+    <span
+      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+        INDUSTRY_BADGE[value] ?? BADGE_DEFAULT
+      }`}
+    >
+      {value}
+    </span>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface Props {
@@ -340,7 +363,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
             검색 결과가 없습니다.
           </p>
         ) : (
-          <div className="rounded border border-[var(--border)] overflow-hidden">
+          <div className="rounded-lg border border-[var(--border)] overflow-hidden shadow-sm">
             <table className="text-sm border-collapse w-full">
               <thead>
                 <tr>
@@ -361,17 +384,17 @@ export default function ChecklistView({ db, initialRows }: Props) {
                   <tr
                     key={row.id}
                     onClick={() => setSelectedRow(row)}
-                    className={`group cursor-pointer transition-colors hover:bg-[var(--hover)] ${
+                    className={`group cursor-pointer transition-colors duration-150 hover:bg-[var(--hover)] ${
                       idx % 2 === 1 ? "bg-[var(--bg-secondary)]/40" : ""
                     }`}
                   >
-                    <td className="px-4 py-2.5 border-b border-r border-[var(--border)] font-medium text-[var(--fg)]">
-                      {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
+                    <td className="px-4 py-3 border-b border-r border-[var(--border)] font-semibold text-base text-[var(--fg)]">
+                      {row.data["업체명"] || <span className="text-[var(--fg-muted)] font-normal text-sm">-</span>}
                     </td>
-                    <td className="px-4 py-2.5 border-b border-r border-[var(--border)] text-[var(--fg-muted)]">
-                      {row.data["업종"] || "-"}
+                    <td className="px-4 py-3 border-b border-r border-[var(--border)]">
+                      <IndustryBadge value={row.data["업종"] ?? ""} />
                     </td>
-                    <td className="px-4 py-2.5 border-b border-[var(--border)] text-[var(--fg-muted)]">
+                    <td className="px-4 py-3 border-b border-[var(--border)] text-sm text-[var(--fg-muted)]">
                       {row.data["작성일"] || "-"}
                     </td>
                     <td className="border-b border-[var(--border)] w-10 text-center">
