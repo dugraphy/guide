@@ -54,7 +54,7 @@ export interface DatabaseRow {
 
 const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
   {
-    name: "업체 관리",
+    name: "클라이언트 관리",
     slug: "clients",
     columns: [
       { id: "업체명", name: "클라이언트명", type: "text" },
@@ -240,10 +240,15 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
 
     const colKey = (cols: Column[]) =>
       JSON.stringify(cols.map((c) => ({ id: c.id, name: c.name, options: c.options ?? null })));
-    if (colKey(seedDb.columns) === colKey(existing.columns)) continue;
+    const nameChanged = seedDb.name !== existing.name;
+    const colsChanged = colKey(seedDb.columns) !== colKey(existing.columns);
+    if (!nameChanged && !colsChanged) continue;
 
-    await supabase.from("databases").update({ columns: seedDb.columns }).eq("slug", seedDb.slug);
-    if (seedDb.slug === "clients") await migrateClientsIndustry(existing.id);
+    const patch: Record<string, unknown> = {};
+    if (nameChanged) patch.name = seedDb.name;
+    if (colsChanged) patch.columns = seedDb.columns;
+    await supabase.from("databases").update(patch).eq("slug", seedDb.slug);
+    if (colsChanged && seedDb.slug === "clients") await migrateClientsIndustry(existing.id);
   }
 
   return list;
