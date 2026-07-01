@@ -78,6 +78,31 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
     ],
   },
   {
+    name: "문의 클라이언트",
+    slug: "inquiry-clients",
+    columns: [
+      { id: "업체명", name: "업체명", type: "text" },
+      { id: "이름", name: "이름", type: "text" },
+      { id: "연락처", name: "연락처", type: "text" },
+      { id: "상담목적", name: "상담목적", type: "text" },
+      {
+        id: "업종",
+        name: "업종",
+        type: "select",
+        options: ["쇼핑몰", "병의원", "숙박업", "기업", "기타"],
+      },
+      { id: "예산범위", name: "예산범위", type: "text" },
+      { id: "희망기간", name: "희망기간", type: "text" },
+      {
+        id: "진행여부",
+        name: "진행여부",
+        type: "select",
+        options: ["예정", "상담중", "완료", "보류"],
+      },
+      { id: "등록일", name: "등록일", type: "date" },
+    ],
+  },
+  {
     name: "상담 체크리스트",
     slug: "checklist",
     columns: [

@@ -10,7 +10,7 @@ export default async function DbPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { slug } = await params;
-  const { status, 업종 } = await searchParams;
+  const { status, 업종, highlight } = await searchParams;
 
   const db = await getDatabase(slug);
   if (!db) notFound();
@@ -23,6 +23,7 @@ export default async function DbPage({
       initialRows={rows}
       initialStatus={typeof status === "string" ? status : "전체"}
       initialIndustry={typeof 업종 === "string" ? 업종 : ""}
+      initialHighlight={typeof highlight === "string" ? highlight : undefined}
     />
   );
 }

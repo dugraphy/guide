@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { DatabaseDef, DatabaseRow, Column } from "@/lib/databases";
 
@@ -9,6 +9,7 @@ interface Props {
   initialRows: DatabaseRow[];
   initialStatus: string;
   initialIndustry: string;
+  initialHighlight?: string;
 }
 
 // Column min-widths by type / name
@@ -24,6 +25,7 @@ export default function DatabaseView({
   initialRows,
   initialStatus,
   initialIndustry,
+  initialHighlight,
 }: Props) {
   const router = useRouter();
 
@@ -31,6 +33,20 @@ export default function DatabaseView({
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const rowsRef = useRef<DatabaseRow[]>(initialRows);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // ── highlight state ───────────────────────────────────────────────────────
+  const [highlightId, setHighlightId] = useState<string | null>(() => {
+    if (!initialHighlight) return null;
+    return initialRows.find((r) => r.data["업체명"] === initialHighlight)?.id ?? null;
+  });
+  const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
+
+  useEffect(() => {
+    if (!highlightId) return;
+    highlightRowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const t = setTimeout(() => setHighlightId(null), 3000);
+    return () => clearTimeout(t);
+  }, [highlightId]);
 
   // ── filter state ─────────────────────────────────────────────────────────
   const [status, setStatus] = useState(initialStatus || "전체");
@@ -218,8 +234,13 @@ export default function DatabaseView({
               {displayRows.map((row, idx) => (
                 <tr
                   key={row.id}
+                  ref={row.id === highlightId ? highlightRowRef : undefined}
                   className={`group transition-colors hover:bg-[var(--hover)] ${
-                    idx % 2 === 1 ? "bg-[var(--bg-secondary)]/40" : ""
+                    row.id === highlightId
+                      ? "bg-[var(--accent)]/10 outline outline-2 outline-[var(--accent)]"
+                      : idx % 2 === 1
+                      ? "bg-[var(--bg-secondary)]/40"
+                      : ""
                   }`}
                 >
                   {db.columns.map((col) => {
