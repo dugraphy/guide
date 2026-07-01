@@ -240,9 +240,32 @@ export default function ChecklistView({ db, initialRows }: Props) {
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const [selectedRow, setSelectedRow] = useState<DatabaseRow | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [search, setSearch] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [sortDesc, setSortDesc] = useState(true);
 
   const answerCol = db.columns.find((c) => c.id === ANSWER_KEY);
   const questions = answerCol?.questions ?? [];
+  const industryOptions = db.columns.find((c) => c.id === "업종")?.options ?? [];
+
+  const displayRows = (() => {
+    let result = rows;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((r) => (r.data["업체명"] ?? "").toLowerCase().includes(q));
+    }
+    if (industry) {
+      result = result.filter((r) => r.data["업종"] === industry);
+    }
+    return [...result].sort((a, b) => {
+      const da = a.data["작성일"] || "";
+      const db_ = b.data["작성일"] || "";
+      if (!da && !db_) return 0;
+      if (!da) return sortDesc ? 1 : -1;
+      if (!db_) return sortDesc ? -1 : 1;
+      return sortDesc ? (da > db_ ? -1 : 1) : (da < db_ ? -1 : 1);
+    });
+  })();
 
   const handleAddSubmit = async (data: Record<string, string>) => {
     const resp = await fetch(`/api/databases/${db.slug}/rows`, {
@@ -258,9 +281,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
   const handleDelete = async (rowId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm("이 상담 기록을 삭제할까요?")) return;
-    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-      method: "DELETE",
-    });
+    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, { method: "DELETE" });
     setRows((prev) => prev.filter((r) => r.id !== rowId));
     if (selectedRow?.id === rowId) setSelectedRow(null);
   };
@@ -268,15 +289,44 @@ export default function ChecklistView({ db, initialRows }: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-8 pt-8 pb-4 shrink-0 flex items-center justify-between border-b border-[var(--border)]">
-        <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
-        >
-          <span className="text-base font-light leading-none">+</span>
-          새 상담 기록
-        </button>
+      <div className="px-8 pt-8 pb-4 shrink-0 border-b border-[var(--border)]">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 text-sm bg-[var(--accent)] text-white px-3 py-1.5 rounded hover:opacity-90 transition-opacity"
+          >
+            <span className="text-base font-light leading-none">+</span>
+            새 상담 기록
+          </button>
+        </div>
+
+        {/* 검색 / 필터 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="업체명 검색"
+            className="text-sm border border-[var(--border)] rounded px-3 py-1.5 bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--fg-muted)] w-44"
+          />
+          <select
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            className="text-sm border border-[var(--border)] rounded px-2 py-1.5 bg-[var(--bg)] text-[var(--fg)] outline-none cursor-pointer"
+          >
+            <option value="">업종 전체</option>
+            {industryOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setSortDesc((v) => !v)}
+            className="text-sm border border-[var(--border)] rounded px-3 py-1.5 bg-[var(--bg)] text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
+          >
+            작성일 {sortDesc ? "최신순 ↓" : "오래된순 ↑"}
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -284,6 +334,10 @@ export default function ChecklistView({ db, initialRows }: Props) {
         {rows.length === 0 ? (
           <p className="text-center py-12 text-sm text-[var(--fg-muted)]">
             아직 상담 기록이 없습니다. 새 상담 기록을 추가해보세요.
+          </p>
+        ) : displayRows.length === 0 ? (
+          <p className="text-center py-12 text-sm text-[var(--fg-muted)]">
+            검색 결과가 없습니다.
           </p>
         ) : (
           <div className="rounded border border-[var(--border)] overflow-hidden">
@@ -303,7 +357,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, idx) => (
+                {displayRows.map((row, idx) => (
                   <tr
                     key={row.id}
                     onClick={() => setSelectedRow(row)}
@@ -312,9 +366,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
                     }`}
                   >
                     <td className="px-4 py-2.5 border-b border-r border-[var(--border)] font-medium text-[var(--fg)]">
-                      {row.data["업체명"] || (
-                        <span className="text-[var(--fg-muted)]">-</span>
-                      )}
+                      {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
                     </td>
                     <td className="px-4 py-2.5 border-b border-r border-[var(--border)] text-[var(--fg-muted)]">
                       {row.data["업종"] || "-"}
@@ -342,10 +394,7 @@ export default function ChecklistView({ db, initialRows }: Props) {
       {/* View modal */}
       {selectedRow && (
         <Modal onClose={() => setSelectedRow(null)}>
-          <ViewModal
-            row={selectedRow}
-            onClose={() => setSelectedRow(null)}
-          />
+          <ViewModal row={selectedRow} onClose={() => setSelectedRow(null)} />
         </Modal>
       )}
 
