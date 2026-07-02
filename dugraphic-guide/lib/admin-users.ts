@@ -32,12 +32,15 @@ export async function getAccounts(): Promise<AccountRow[]> {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-// 초대 이메일을 발송하고, 계정은 auth.users insert 트리거(handle_new_user)가
-// profiles 테이블에 role="member"로 자동 등록한다.
-export async function inviteAccount(email: string, redirectTo: string) {
+// email_confirm: true로 이메일 발송 없이 즉시 로그인 가능한 계정을 만든다.
+// profiles 행은 auth.users insert 트리거(handle_new_user)가 role="member"로
+// 자동 등록한다.
+export async function createAccount(email: string, password: string) {
   const supabaseAdmin = createAdminClient();
-  const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
   });
   if (error) throw new Error(error.message);
   return data.user;

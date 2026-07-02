@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import type { AccountRow } from "@/lib/admin-users";
 
@@ -9,30 +10,60 @@ interface Props {
   currentUserId: string | null;
 }
 
+function generateTempPassword(length = 12): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+  return Array.from(values, (v) => chars[v % chars.length]).join("");
+}
+
 export default function AdminClient({ accounts, currentUserId }: Props) {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
-  const [inviting, setInviting] = useState(false);
+  const [password, setPassword] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const handleInvite = async (e: React.FormEvent) => {
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordChanged, setPasswordChanged] = useState(false);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
+  );
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setInviting(true);
-    setError("");
+    setCreating(true);
+    setCreateError("");
+    setCreated(null);
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, password }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(data.error ?? "초대 발송에 실패했습니다.");
+      setCreateError(data.error ?? "계정 생성에 실패했습니다.");
     } else {
+      setCreated({ email, password });
       setEmail("");
+      setPassword("");
       router.refresh();
     }
-    setInviting(false);
+    setCreating(false);
+  };
+
+  const handleCopyCreated = () => {
+    if (!created) return;
+    navigator.clipboard.writeText(`이메일: ${created.email}\n비밀번호: ${created.password}`);
   };
 
   const handleRoleChange = async (id: string, role: string) => {
@@ -60,32 +91,116 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
     setBusyId(null);
   };
 
+  const handleChangeMyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChanged(false);
+    if (newPassword.length < 6) {
+      setPasswordError("비밀번호는 6자 이상이어야 합니다.");
+      return;
+    }
+    setChangingPassword(true);
+    setPasswordError("");
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setPasswordError(error.message);
+    } else {
+      setNewPassword("");
+      setPasswordChanged(true);
+    }
+    setChangingPassword(false);
+  };
+
   return (
     <div className="space-y-8">
       <section>
         <h2 className="text-sm font-semibold text-[var(--fg)] mb-3">계정 생성</h2>
-        <form onSubmit={handleInvite} className="flex gap-2">
+        <form onSubmit={handleCreate} className="space-y-2">
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="example@email.com"
+            className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="비밀번호 (6자 이상)"
+              className="flex-1 px-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            />
+            <button
+              type="button"
+              onClick={() => setPassword(generateTempPassword())}
+              className="px-3 py-2 text-xs font-medium border border-[var(--border)] rounded-lg text-[var(--fg)] hover:bg-[var(--hover)] transition-colors whitespace-nowrap"
+            >
+              임시 비밀번호 자동 생성
+            </button>
+          </div>
+          <button
+            type="submit"
+            disabled={creating}
+            className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {creating ? "생성 중..." : "계정 생성"}
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-[var(--fg-muted)]">
+          이메일 발송 없이 즉시 로그인 가능한 계정이 생성됩니다. 아래 정보를
+          복사해 직접 전달해주세요.
+        </p>
+        {createError && <p className="mt-2 text-xs text-red-500">{createError}</p>}
+
+        {created && (
+          <div className="mt-3 p-3 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] text-xs space-y-1.5">
+            <p className="text-[var(--fg)] font-medium">계정이 생성되었습니다</p>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--fg-muted)]">이메일</span>
+              <code className="text-[var(--fg)]">{created.email}</code>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--fg-muted)]">비밀번호</span>
+              <code className="text-[var(--fg)]">{created.password}</code>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyCreated}
+              className="text-[var(--accent)] hover:underline"
+            >
+              복사하기
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-sm font-semibold text-[var(--fg)] mb-3">내 비밀번호 변경</h2>
+        <form onSubmit={handleChangeMyPassword} className="flex gap-2">
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="새 비밀번호 (6자 이상)"
             className="flex-1 px-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
           />
           <button
             type="submit"
-            disabled={inviting}
+            disabled={changingPassword}
             className="px-4 py-2 text-sm font-medium bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
           >
-            {inviting ? "발송 중..." : "계정 생성"}
+            {changingPassword ? "변경 중..." : "비밀번호 변경"}
           </button>
         </form>
-        <p className="mt-2 text-xs text-[var(--fg-muted)]">
-          입력한 이메일로 초대 메일이 발송됩니다. 초대받은 사람이 메일 속 링크를 눌러
-          직접 비밀번호를 설정하면 계정이 활성화됩니다.
-        </p>
-        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+        {passwordError && <p className="mt-2 text-xs text-red-500">{passwordError}</p>}
+        {passwordChanged && (
+          <p className="mt-2 text-xs text-[var(--accent)]">비밀번호가 변경되었습니다.</p>
+        )}
       </section>
 
       <section>
@@ -133,6 +248,7 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
             })}
           </tbody>
         </table>
+        {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
         {currentUserId && (
           <p className="mt-2 text-xs text-[var(--fg-muted)]">
             본인 계정의 권한 변경/삭제는 잠금 방지를 위해 제한됩니다.
