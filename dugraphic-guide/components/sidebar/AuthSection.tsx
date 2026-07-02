@@ -72,8 +72,8 @@ export default function AuthSection({ email, role }: Props) {
             <p className="text-[10px] text-[var(--fg-muted)]">
               {role === "owner" ? "관리자" : "멤버"}
             </p>
-            {role === "owner" && (
-              <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5">
+              {role === "owner" && (
                 <Link
                   href="/admin"
                   title="관리자 설정"
@@ -81,16 +81,16 @@ export default function AuthSection({ email, role }: Props) {
                 >
                   <Settings size={13} />
                 </Link>
-                <button
-                  type="button"
-                  onClick={handleCopyLink}
-                  title="현재 페이지 링크 복사"
-                  className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
-                >
-                  <LinkIcon size={13} />
-                </button>
-              </div>
-            )}
+              )}
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                title="현재 페이지 링크 복사"
+                className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
+              >
+                <LinkIcon size={13} />
+              </button>
+            </div>
           </div>
         )}
         <button
