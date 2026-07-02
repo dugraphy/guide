@@ -18,15 +18,12 @@
  * create index if not exists idx_db_rows_database_id
  *   on database_rows(database_id);
  *
- * alter table databases enable row level security;
- * alter table database_rows enable row level security;
- * create policy "public_all_databases"
- *   on databases for all using (true) with check (true);
- * create policy "public_all_database_rows"
- *   on database_rows for all using (true) with check (true);
+ * RLS policies: see supabase/rls-hardening.sql (read for everyone,
+ * write for owners only — enforced there, not with an open "for all" policy).
  */
 
 import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-admin";
 
 export interface Column {
   id: string;
@@ -135,9 +132,13 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id" | "sort_order">> = [
   },
 ];
 
+// 하드코딩된 시드 데이터를 쓰는 것뿐이라 service role로 진행해도 안전하다
+// (RLS는 owner 권한이 있는 세션만 쓰기를 허용하는데, 이 함수는 로그인
+// 세션과 무관하게 앱 초기화 시점에 항상 실행되어야 하기 때문).
 async function seedDatabases() {
+  const supabaseAdmin = createAdminClient();
   for (const [index, db] of SEED_DATABASES.entries()) {
-    await supabase
+    await supabaseAdmin
       .from("databases")
       .upsert(
         { name: db.name, slug: db.slug, columns: db.columns, sort_order: index },
@@ -150,7 +151,8 @@ async function seedDatabases() {
 const OLD_CLIENT_INDUSTRIES = new Set(["디자인", "개발", "마케팅"]);
 
 async function migrateClientsIndustry(clientsDbId: string) {
-  const { data: rows } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data: rows } = await supabaseAdmin
     .from("database_rows")
     .select("id, data")
     .eq("database_id", clientsDbId);
@@ -162,7 +164,7 @@ async function migrateClientsIndustry(clientsDbId: string) {
 
   await Promise.all(
     stale.map((row) =>
-      supabase
+      supabaseAdmin
         .from("database_rows")
         .update({ data: { ...(row.data as Record<string, string>), 업종: "기타" } })
         .eq("id", row.id)
@@ -171,6 +173,8 @@ async function migrateClientsIndustry(clientsDbId: string) {
 }
 
 // Sync 메모 between "clients" and "checklist" when it changes on either side.
+// 호출자(app/api/databases/[slug]/rows/[id]/route.ts PATCH)가 이미
+// requireOwnerOrForbidden()으로 owner 여부를 확인했으므로 service role 사용.
 export async function syncMemoAcrossDBs(
   fromSlug: string,
   업체명: string,
@@ -178,15 +182,16 @@ export async function syncMemoAcrossDBs(
 ): Promise<void> {
   if (!업체명 || (fromSlug !== "clients" && fromSlug !== "checklist")) return;
   const toSlug = fromSlug === "clients" ? "checklist" : "clients";
+  const supabaseAdmin = createAdminClient();
 
-  const { data: targetDb } = await supabase
+  const { data: targetDb } = await supabaseAdmin
     .from("databases")
     .select("id")
     .eq("slug", toSlug)
     .single();
   if (!targetDb) return;
 
-  const { data: allRows } = await supabase
+  const { data: allRows } = await supabaseAdmin
     .from("database_rows")
     .select("id, data")
     .eq("database_id", targetDb.id);
@@ -206,7 +211,7 @@ export async function syncMemoAcrossDBs(
         })
       : matches[0];
 
-  await supabase
+  await supabaseAdmin
     .from("database_rows")
     .update({ data: { ...(target.data as Record<string, string>), 메모 } })
     .eq("id", target.id);
@@ -237,6 +242,7 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
   }
 
   // Auto-sync column schemas: when seed options differ from the DB, update and migrate.
+  const supabaseAdmin = createAdminClient();
   for (const seedDb of SEED_DATABASES) {
     const existing = list.find((d) => d.slug === seedDb.slug);
     if (!existing) continue;
@@ -250,7 +256,7 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
     const patch: Record<string, unknown> = {};
     if (nameChanged) patch.name = seedDb.name;
     if (colsChanged) patch.columns = seedDb.columns;
-    await supabase.from("databases").update(patch).eq("slug", seedDb.slug);
+    await supabaseAdmin.from("databases").update(patch).eq("slug", seedDb.slug);
     if (colsChanged && seedDb.slug === "clients") await migrateClientsIndustry(existing.id);
   }
 
@@ -271,10 +277,12 @@ export async function getDatabase(slug: string): Promise<DatabaseDef | undefined
 }
 
 // orderedSlugs의 순서대로 sort_order(0, 1, 2, ...)를 일괄 반영한다.
+// service role 사용 이유는 reorderPages(lib/pages.ts)와 동일.
 export async function reorderDatabases(orderedSlugs: string[]): Promise<void> {
+  const supabaseAdmin = createAdminClient();
   const results = await Promise.all(
     orderedSlugs.map((slug, index) =>
-      supabase.from("databases").update({ sort_order: index }).eq("slug", slug)
+      supabaseAdmin.from("databases").update({ sort_order: index }).eq("slug", slug)
     )
   );
   const failed = results.find((r) => r.error);
@@ -291,11 +299,14 @@ export async function getRows(databaseId: string): Promise<DatabaseRow[]> {
   return (data ?? []) as DatabaseRow[];
 }
 
+// addRow/updateRow/deleteRow는 owner 전용 쓰기 API 라우트(및 X-API-Key로
+// 별도 인증되는 외부 연동 라우트)에서만 호출되므로 service role을 쓴다.
 export async function addRow(
   databaseId: string,
   data: Record<string, string>
 ): Promise<DatabaseRow> {
-  const { data: row, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data: row, error } = await supabaseAdmin
     .from("database_rows")
     .insert({ database_id: databaseId, data })
     .select()
@@ -308,7 +319,8 @@ export async function updateRow(
   id: string,
   data: Record<string, string>
 ): Promise<DatabaseRow> {
-  const { data: row, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data: row, error } = await supabaseAdmin
     .from("database_rows")
     .update({ data })
     .eq("id", id)
@@ -319,6 +331,7 @@ export async function updateRow(
 }
 
 export async function deleteRow(id: string): Promise<void> {
-  const { error } = await supabase.from("database_rows").delete().eq("id", id);
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin.from("database_rows").delete().eq("id", id);
   if (error) throw new Error(`deleteRow: ${error.message}`);
 }

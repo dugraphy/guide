@@ -1,4 +1,5 @@
 import { supabase, type PageRow } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { octokit, OWNER, REPO, PAGES_DIR } from "@/lib/github";
 import type { PageData } from "@/lib/data";
 
@@ -100,10 +101,14 @@ export async function getNextPageSortOrder(): Promise<number> {
 }
 
 // orderedSlugs의 순서대로 sort_order(0, 1, 2, ...)를 일괄 반영한다.
+// 쓰기 작업이므로 RLS(owner만 write 허용)를 우회하는 service role을 쓴다 —
+// 호출자(API 라우트)가 이미 requireOwnerOrForbidden()으로 owner 여부를
+// 확인했으므로 안전하다.
 export async function reorderPages(orderedSlugs: string[]): Promise<void> {
+  const supabaseAdmin = createAdminClient();
   const results = await Promise.all(
     orderedSlugs.map((slug, index) =>
-      supabase.from("pages").update({ sort_order: index }).eq("slug", slug)
+      supabaseAdmin.from("pages").update({ sort_order: index }).eq("slug", slug)
     )
   );
   const failed = results.find((r) => r.error);
@@ -111,8 +116,9 @@ export async function reorderPages(orderedSlugs: string[]): Promise<void> {
 }
 
 export async function deletePage(slug: string): Promise<void> {
-  // 1. Supabase 삭제 (primary)
-  const { error } = await supabase.from("pages").delete().eq("slug", slug);
+  // 1. Supabase 삭제 (primary) — service role: 위 reorderPages와 동일한 이유
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin.from("pages").delete().eq("slug", slug);
   if (error) throw new Error(`deletePage(${slug}): ${error.message}`);
 
   // 2. GitHub 백업 삭제 (secondary — 실패 시 로그만)
@@ -138,8 +144,9 @@ export async function upsertPage(
 ): Promise<{ sha: string | undefined; path: string }> {
   const path = `${PAGES_DIR}/${page.slug}.json`;
 
-  // 1. Supabase upsert (primary store)
-  const { error } = await supabase
+  // 1. Supabase upsert (primary store) — service role, see reorderPages 주석
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
     .from("pages")
     .upsert(pageToRow(page), { onConflict: "slug" });
   if (error) throw new Error(`upsertPage(${page.slug}): ${error.message}`);

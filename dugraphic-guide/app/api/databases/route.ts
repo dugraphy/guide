@@ -1,5 +1,6 @@
 import { getDatabases } from "@/lib/databases";
-import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-admin";
+import { requireOwnerOrForbidden } from "@/lib/auth";
 import type { Column } from "@/lib/databases";
 
 export async function GET() {
@@ -7,12 +8,16 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const forbidden = await requireOwnerOrForbidden();
+  if (forbidden) return forbidden;
+
   const { name, slug, columns } = (await request.json()) as {
     name: string;
     slug: string;
     columns: Column[];
   };
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from("databases")
     .insert({ name, slug, columns })
     .select()
