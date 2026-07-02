@@ -5,7 +5,6 @@ import SidebarItem from "./SidebarItem";
 import PageSidebarItem from "./PageSidebarItem";
 import NewPageButton from "./NewPageButton";
 import AuthSection from "./AuthSection";
-import ShareButton from "./ShareButton";
 
 const NAV_ITEMS = [
   { href: "/", icon: "🏠", label: "홈" },
@@ -70,18 +69,6 @@ export default async function Sidebar() {
               />
             ))}
           </>
-        )}
-
-        {role === "owner" && (
-          <div className="mt-4 px-1">
-            <ShareButton />
-          </div>
-        )}
-
-        {role === "owner" && (
-          <div className="mt-4 px-1">
-            <SidebarItem href="/admin" icon="⚙️" label="관리자" />
-          </div>
         )}
       </nav>
 
