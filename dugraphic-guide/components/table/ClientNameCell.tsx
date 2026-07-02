@@ -23,7 +23,7 @@ export function ClientNameCell({ value, onCommit, className }: Props) {
     const from = value || "(빈 값)";
     const to = draft || "(빈 값)";
     const confirmed = window.confirm(
-      `"${from}"를 "${to}"로 변경하면 다른 데이터베이스의 동일 업체명 행도 함께 변경됩니다. 계속하시겠습니까?`
+      `'${from}'를 '${to}'로 변경하면 다른 데이터베이스의 동일 업체명 행도 함께 변경됩니다. 계속하시겠습니까?`
     );
     if (!confirmed) {
       setDraft(value);
