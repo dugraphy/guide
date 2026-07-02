@@ -43,3 +43,13 @@ insert into public.profiles (id, email, role)
 select id, email, case when email = 'zxasqw24720106@gmail.com' then 'owner' else 'member' end
 from auth.users
 on conflict (id) do nothing;
+
+-- must_change_password: 관리자가 /admin에서 생성한 계정은 최초 로그인 시
+-- 비밀번호를 강제로 변경하도록 한다(기본값 true). 이 컬럼이 새로 추가되는
+-- 시점에 이미 존재하던 계정은 그대로 사용해온 것이므로 false로 되돌린다.
+alter table public.profiles
+  add column if not exists must_change_password boolean not null default true;
+
+update public.profiles
+set must_change_password = false
+where must_change_password is distinct from false;

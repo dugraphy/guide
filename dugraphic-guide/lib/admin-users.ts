@@ -34,7 +34,8 @@ export async function getAccounts(): Promise<AccountRow[]> {
 
 // email_confirm: true로 이메일 발송 없이 즉시 로그인 가능한 계정을 만든다.
 // profiles 행은 auth.users insert 트리거(handle_new_user)가 role="member"로
-// 자동 등록한다.
+// 자동 등록한다. 관리자가 정한 비밀번호이므로 최초 로그인 시 반드시
+// 새 비밀번호로 바꾸도록 must_change_password를 명시적으로 true로 설정한다.
 export async function createAccount(email: string, password: string) {
   const supabaseAdmin = createAdminClient();
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -43,6 +44,13 @@ export async function createAccount(email: string, password: string) {
     email_confirm: true,
   });
   if (error) throw new Error(error.message);
+
+  const { error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .update({ must_change_password: true })
+    .eq("id", data.user.id);
+  if (profileError) throw new Error(profileError.message);
+
   return data.user;
 }
 
