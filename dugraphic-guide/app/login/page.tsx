@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 
 function formatAuthError(message: string): string {
@@ -128,13 +127,6 @@ export default function LoginPage() {
           </svg>
           {googleLoading ? "이동 중..." : "Google로 로그인"}
         </button>
-
-        <p className="mt-5 text-xs text-center text-[var(--fg-muted)]">
-          계정이 없으신가요?{" "}
-          <Link href="/signup" className="text-[var(--accent)] hover:underline">
-            회원가입
-          </Link>
-        </p>
       </div>
     </div>
   );

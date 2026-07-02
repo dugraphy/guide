@@ -77,6 +77,12 @@ export default async function Sidebar() {
             <ShareButton />
           </div>
         )}
+
+        {role === "owner" && (
+          <div className="mt-4 px-1">
+            <SidebarItem href="/admin" icon="⚙️" label="관리자" />
+          </div>
+        )}
       </nav>
 
       <AuthSection email={email} role={role} />
