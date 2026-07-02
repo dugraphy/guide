@@ -70,7 +70,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id" | "sort_order">> = [
         id: "상태",
         name: "상태",
         type: "select",
-        options: ["신규", "진행중", "완료"],
+        options: ["예정", "상담중", "작업중", "완료", "보류"],
       },
       { id: "메모", name: "메모", type: "text" },
     ],
@@ -95,7 +95,7 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id" | "sort_order">> = [
         id: "진행여부",
         name: "진행여부",
         type: "select",
-        options: ["예정", "상담중", "완료", "보류"],
+        options: ["예정", "상담중", "작업중", "완료", "보류"],
       },
       { id: "등록일", name: "등록일", type: "date" },
     ],
@@ -172,6 +172,38 @@ async function migrateClientsIndustry(clientsDbId: string) {
   );
 }
 
+// Migrate "clients" rows from the old 상태 vocabulary (신규/진행중) to the
+// new one shared with "문의 클라이언트"의 진행여부 (예정/상담중/작업중/완료/보류).
+const OLD_CLIENT_STATUS_MAP: Record<string, string> = {
+  신규: "예정",
+  진행중: "작업중",
+};
+
+async function migrateClientsStatus(clientsDbId: string) {
+  const supabaseAdmin = createAdminClient();
+  const { data: rows } = await supabaseAdmin
+    .from("database_rows")
+    .select("id, data")
+    .eq("database_id", clientsDbId);
+
+  const stale = (rows ?? []).filter(
+    (r) => (r.data as Record<string, string>)["상태"] in OLD_CLIENT_STATUS_MAP
+  );
+  if (!stale.length) return;
+
+  await Promise.all(
+    stale.map((row) => {
+      const oldStatus = (row.data as Record<string, string>)["상태"];
+      return supabaseAdmin
+        .from("database_rows")
+        .update({
+          data: { ...(row.data as Record<string, string>), 상태: OLD_CLIENT_STATUS_MAP[oldStatus] },
+        })
+        .eq("id", row.id);
+    })
+  );
+}
+
 // Sync 메모 between "clients" and "checklist" when it changes on either side.
 // 호출자(app/api/databases/[slug]/rows/[id]/route.ts PATCH)가 이미
 // requireOwnerOrForbidden()으로 owner 여부를 확인했으므로 service role 사용.
@@ -217,6 +249,56 @@ export async function syncMemoAcrossDBs(
     .eq("id", target.id);
 }
 
+// "clients"의 상태 ↔ "inquiry-clients"의 진행여부를 업체명 기준으로 동기화.
+// 두 테이블의 컬럼 id가 다르므로(상태 vs 진행여부) 대상 필드를 매핑해서 쓴다.
+const STATUS_FIELD_BY_SLUG: Record<string, string> = {
+  clients: "상태",
+  "inquiry-clients": "진행여부",
+};
+
+export async function syncStatusAcrossDBs(
+  fromSlug: string,
+  업체명: string,
+  status: string
+): Promise<void> {
+  if (!업체명 || (fromSlug !== "clients" && fromSlug !== "inquiry-clients")) return;
+  const toSlug = fromSlug === "clients" ? "inquiry-clients" : "clients";
+  const toField = STATUS_FIELD_BY_SLUG[toSlug];
+  const supabaseAdmin = createAdminClient();
+
+  const { data: targetDb } = await supabaseAdmin
+    .from("databases")
+    .select("id")
+    .eq("slug", toSlug)
+    .single();
+  if (!targetDb) return;
+
+  const { data: allRows } = await supabaseAdmin
+    .from("database_rows")
+    .select("id, data")
+    .eq("database_id", targetDb.id);
+
+  const matches = (allRows ?? []).filter(
+    (r) => (r.data as Record<string, string>)["업체명"] === 업체명
+  );
+  if (!matches.length) return;
+
+  // inquiry-clients에 같은 업체명이 여러 건이면 등록일이 가장 최근인 행을 기준으로.
+  const target =
+    toSlug === "inquiry-clients" && matches.length > 1
+      ? matches.reduce((best, r) => {
+          const bd = (best.data as Record<string, string>)["등록일"] ?? "";
+          const rd = (r.data as Record<string, string>)["등록일"] ?? "";
+          return rd > bd ? r : best;
+        })
+      : matches[0];
+
+  await supabaseAdmin
+    .from("database_rows")
+    .update({ data: { ...(target.data as Record<string, string>), [toField]: status } })
+    .eq("id", target.id);
+}
+
 // ── 공개 API ─────────────────────────────────────────────────────────────────
 
 export async function getDatabases(): Promise<DatabaseDef[]> {
@@ -257,7 +339,10 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
     if (nameChanged) patch.name = seedDb.name;
     if (colsChanged) patch.columns = seedDb.columns;
     await supabaseAdmin.from("databases").update(patch).eq("slug", seedDb.slug);
-    if (colsChanged && seedDb.slug === "clients") await migrateClientsIndustry(existing.id);
+    if (colsChanged && seedDb.slug === "clients") {
+      await migrateClientsIndustry(existing.id);
+      await migrateClientsStatus(existing.id);
+    }
   }
 
   return list;

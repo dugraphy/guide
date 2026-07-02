@@ -2,6 +2,16 @@
 
 const FALLBACK = "bg-[var(--bg-secondary)] text-[var(--fg-muted)]";
 
+// "클라이언트 관리"의 상태와 "문의 클라이언트"의 진행여부는 같은 값 집합을
+// 공유하므로(예정/상담중/작업중/완료/보류) 색상 맵도 하나를 공유한다.
+const STAGE_COLORS: Record<string, string> = {
+  예정:   "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  상담중: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  작업중: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  완료:   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  보류:   "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+};
+
 export const BADGE_COLORS: Record<string, Record<string, string>> = {
   업종: {
     쇼핑몰: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
@@ -10,17 +20,8 @@ export const BADGE_COLORS: Record<string, Record<string, string>> = {
     기업:   "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
     기타:   "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
   },
-  상태: {
-    신규:   "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-    진행중: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    완료:   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  },
-  진행여부: {
-    예정:   "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-    상담중: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    완료:   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-    보류:   "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-  },
+  상태: STAGE_COLORS,
+  진행여부: STAGE_COLORS,
 };
 
 interface BadgeSelectProps {

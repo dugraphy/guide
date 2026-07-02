@@ -8,9 +8,9 @@ import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
 
-const TABS = ["전체", "예정", "상담중", "완료", "보류"];
+const TABS = ["전체", "예정", "상담중", "작업중", "완료", "보류"];
 const INDUSTRY_OPTIONS = ["쇼핑몰", "병의원", "숙박업", "기업", "기타"];
-const STATUS_OPTIONS = ["예정", "상담중", "완료", "보류"];
+const STATUS_OPTIONS = ["예정", "상담중", "작업중", "완료", "보류"];
 
 const COLS = [
   { id: "업체명",   label: "클라이언트명", defaultWidth: 140 },

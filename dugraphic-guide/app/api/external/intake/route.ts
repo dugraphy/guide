@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         업종,
         담당자: 담당자 ?? "",
         연락처: 연락처 ?? "",
-        상태: "신규",
+        상태: "예정",
       }),
       addRow(checklistDb.id, {
         업체명,
