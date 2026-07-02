@@ -6,6 +6,7 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BADGE_COLORS } from "@/components/table/BadgeSelect";
+import { ClientNameCell } from "@/components/table/ClientNameCell";
 
 const CHECKLIST_COLS = [
   { id: "업체명", defaultWidth: 140 },
@@ -370,6 +371,20 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
     if (selectedRow?.id === rowId) setSelectedRow(null);
   };
 
+  const handleClientNameCommit = async (rowId: string, newName: string) => {
+    const target = rows.find((r) => r.id === rowId);
+    if (!target) return;
+    const updatedData = { ...target.data, 업체명: newName };
+    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedData),
+    });
+    const updated = { ...target, data: updatedData };
+    setRows((prev) => prev.map((r) => (r.id === rowId ? updated : r)));
+    if (selectedRow?.id === rowId) setSelectedRow(updated);
+  };
+
   const handleMemoSave = async (memo: string) => {
     if (!selectedRow) return;
     const updatedData = { ...selectedRow.data, 메모: memo };
@@ -462,9 +477,17 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
                     className={`cursor-pointer ${TABLE.tr(idx)}`}
                   >
                     <td className={TABLE.td}>
-                      <span className="block px-3 py-2 font-semibold text-[var(--fg)] truncate">
-                        {row.data["업체명"] || <span className="text-[var(--fg-muted)] font-normal">-</span>}
-                      </span>
+                      {canEdit ? (
+                        <ClientNameCell
+                          value={row.data["업체명"] ?? ""}
+                          onCommit={(newName) => handleClientNameCommit(row.id, newName)}
+                          className="w-full px-3 py-2 text-sm font-semibold text-[var(--fg)] bg-transparent outline-none placeholder:text-[var(--fg-muted)] placeholder:font-normal"
+                        />
+                      ) : (
+                        <span className="block px-3 py-2 font-semibold text-[var(--fg)] truncate">
+                          {row.data["업체명"] || <span className="text-[var(--fg-muted)] font-normal">-</span>}
+                        </span>
+                      )}
                     </td>
                     <td className={TABLE.td}>
                       <span className="block px-3 py-2 text-sm text-[var(--fg-muted)] truncate">

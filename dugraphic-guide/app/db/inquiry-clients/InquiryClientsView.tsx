@@ -7,6 +7,7 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
+import { ClientNameCell } from "@/components/table/ClientNameCell";
 
 const TABS = ["전체", "예정", "상담중", "작업중", "완료", "보류"];
 const INDUSTRY_OPTIONS = ["쇼핑몰", "병의원", "숙박업", "기업", "기타"];
@@ -81,6 +82,21 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
     },
     [db.slug]
   );
+
+  // 업체명은 debounce 없이 blur 시점(확인 다이얼로그 통과 후)에만 즉시 저장한다.
+  const handleClientNameCommit = async (rowId: string, newName: string) => {
+    rowsRef.current = rowsRef.current.map((r) =>
+      r.id === rowId ? { ...r, data: { ...r.data, 업체명: newName } } : r
+    );
+    setRows([...rowsRef.current]);
+    const row = rowsRef.current.find((r) => r.id === rowId);
+    if (!row) return;
+    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(row.data),
+    });
+  };
 
   const handleAddRow = async () => {
     const today = new Date().toISOString().slice(0, 10);
@@ -173,13 +189,31 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                 <tr key={row.id} className={TABLE.tr(idx)}>
                   {/* 업체명 */}
                   <td className={TABLE.td}>
-                    <button
-                      onClick={() => goToClients(row.data["업체명"] || "")}
-                      title="클라이언트 관리에서 보기"
-                      className="w-full px-2 py-2 text-sm font-semibold text-[var(--accent)] hover:underline text-left truncate block"
-                    >
-                      {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
-                    </button>
+                    {canEdit ? (
+                      <div className="flex items-center gap-0.5 pr-1">
+                        <ClientNameCell
+                          value={row.data["업체명"] ?? ""}
+                          onCommit={(newName) => handleClientNameCommit(row.id, newName)}
+                          className="flex-1 min-w-0 px-2 py-2 text-sm font-semibold text-[var(--fg)] bg-transparent outline-none placeholder:text-[var(--fg-muted)] placeholder:font-normal"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => goToClients(row.data["업체명"] || "")}
+                          title="클라이언트 관리에서 보기"
+                          className="shrink-0 text-[var(--fg-muted)] hover:text-[var(--accent)] transition-colors px-1"
+                        >
+                          →
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => goToClients(row.data["업체명"] || "")}
+                        title="클라이언트 관리에서 보기"
+                        className="w-full px-2 py-2 text-sm font-semibold text-[var(--accent)] hover:underline text-left truncate block"
+                      >
+                        {row.data["업체명"] || <span className="text-[var(--fg-muted)]">-</span>}
+                      </button>
+                    )}
                   </td>
                   {/* 이름 */}
                   <td className={TABLE.td}>

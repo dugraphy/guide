@@ -25,6 +25,13 @@
 import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase-admin";
 
+// 클라이언트명 매칭용 정규화: 앞뒤 공백 제거, 대소문자 무시, 중간 공백은
+// 한 칸으로 축소. "테스트주식회사"처럼 완전히 다른 표기까지는 못 잡는다 —
+// 그 경우는 renameClientAcrossDBs를 통한 명시적 이름 변경으로 처리한다.
+function normalizeClientName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 export interface Column {
   id: string;
   name: string;
@@ -228,8 +235,9 @@ export async function syncMemoAcrossDBs(
     .select("id, data")
     .eq("database_id", targetDb.id);
 
+  const normalized업체명 = normalizeClientName(업체명);
   const matches = (allRows ?? []).filter(
-    (r) => (r.data as Record<string, string>)["업체명"] === 업체명
+    (r) => normalizeClientName((r.data as Record<string, string>)["업체명"] ?? "") === normalized업체명
   );
   if (!matches.length) return;
 
@@ -278,8 +286,9 @@ export async function syncStatusAcrossDBs(
     .select("id, data")
     .eq("database_id", targetDb.id);
 
+  const normalized업체명 = normalizeClientName(업체명);
   const matches = (allRows ?? []).filter(
-    (r) => (r.data as Record<string, string>)["업체명"] === 업체명
+    (r) => normalizeClientName((r.data as Record<string, string>)["업체명"] ?? "") === normalized업체명
   );
   if (!matches.length) return;
 
@@ -297,6 +306,52 @@ export async function syncStatusAcrossDBs(
     .from("database_rows")
     .update({ data: { ...(target.data as Record<string, string>), [toField]: status } })
     .eq("id", target.id);
+}
+
+// 클라이언트명이 바뀌면 나머지 두 데이터베이스의 (정규화 기준) 동일 업체명
+// 행 전부를 새 이름으로 갱신한다 — 메모/상태 동기화와 달리 "가장 최근 1건"이
+// 아니라 매칭되는 모든 행을 바꾼다(상담 체크리스트처럼 같은 업체명 행이
+// 여러 개 있을 수 있으므로).
+const CLIENT_DB_SLUGS = ["clients", "inquiry-clients", "checklist"] as const;
+
+export async function renameClientAcrossDBs(
+  fromSlug: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const normalizedOld = normalizeClientName(oldName);
+  if (!normalizedOld || oldName === newName) return;
+  if (!CLIENT_DB_SLUGS.includes(fromSlug as (typeof CLIENT_DB_SLUGS)[number])) return;
+
+  const supabaseAdmin = createAdminClient();
+  const targetSlugs = CLIENT_DB_SLUGS.filter((slug) => slug !== fromSlug);
+
+  for (const slug of targetSlugs) {
+    const { data: targetDb } = await supabaseAdmin
+      .from("databases")
+      .select("id")
+      .eq("slug", slug)
+      .single();
+    if (!targetDb) continue;
+
+    const { data: allRows } = await supabaseAdmin
+      .from("database_rows")
+      .select("id, data")
+      .eq("database_id", targetDb.id);
+
+    const matches = (allRows ?? []).filter(
+      (r) => normalizeClientName((r.data as Record<string, string>)["업체명"] ?? "") === normalizedOld
+    );
+
+    await Promise.all(
+      matches.map((row) =>
+        supabaseAdmin
+          .from("database_rows")
+          .update({ data: { ...(row.data as Record<string, string>), 업체명: newName } })
+          .eq("id", row.id)
+      )
+    );
+  }
 }
 
 // ── 공개 API ─────────────────────────────────────────────────────────────────
@@ -382,6 +437,19 @@ export async function getRows(databaseId: string): Promise<DatabaseRow[]> {
     .order("created_at", { ascending: true });
   if (error) throw new Error(`getRows: ${error.message}`);
   return (data ?? []) as DatabaseRow[];
+}
+
+export async function getRow(id: string): Promise<DatabaseRow | undefined> {
+  const { data, error } = await supabase
+    .from("database_rows")
+    .select("id, database_id, data, created_at")
+    .eq("id", id)
+    .single();
+  if (error) {
+    if (error.code === "PGRST116") return undefined;
+    throw new Error(`getRow(${id}): ${error.message}`);
+  }
+  return data as DatabaseRow;
 }
 
 // addRow/updateRow/deleteRow는 owner 전용 쓰기 API 라우트(및 X-API-Key로

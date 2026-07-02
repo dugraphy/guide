@@ -7,6 +7,7 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
+import { ClientNameCell } from "@/components/table/ClientNameCell";
 
 const SLUG_STORAGE_KEY: Record<string, string> = {
   clients: "column-widths-companies",
@@ -128,6 +129,21 @@ export default function DatabaseView({
     },
     [db.slug]
   );
+
+  // 업체명은 debounce 없이 blur 시점(확인 다이얼로그 통과 후)에만 즉시 저장한다.
+  const handleClientNameCommit = async (rowId: string, newName: string) => {
+    rowsRef.current = rowsRef.current.map((r) =>
+      r.id === rowId ? { ...r, data: { ...r.data, 업체명: newName } } : r
+    );
+    setRows([...rowsRef.current]);
+    const row = rowsRef.current.find((r) => r.id === rowId);
+    if (!row) return;
+    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(row.data),
+    });
+  };
 
   const handleAddRow = async () => {
     const emptyData: Record<string, string> = {};
@@ -254,6 +270,12 @@ export default function DatabaseView({
                               <StaticBadge colId={col.id} value={value} />
                             )}
                           </div>
+                        ) : canEdit && col.id === "업체명" ? (
+                          <ClientNameCell
+                            value={value}
+                            onCommit={(newName) => handleClientNameCommit(row.id, newName)}
+                            className={`${TABLE.cellInput} font-semibold`}
+                          />
                         ) : canEdit && col.type === "date" ? (
                           <input
                             type="date"
