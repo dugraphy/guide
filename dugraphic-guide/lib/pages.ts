@@ -12,6 +12,7 @@ function rowToPage(row: PageRow): PageData {
     description: row.body.description ?? "",
     // blocks 배열을 다시 JSON 문자열로 — BlockEditor가 기대하는 형태
     body: JSON.stringify(row.body.blocks ?? []),
+    sortOrder: row.sort_order,
   };
 }
 
@@ -27,6 +28,7 @@ function pageToRow(page: PageData): PageRow {
     slug: page.slug,
     title: page.title,
     body: { icon: page.icon, description: page.description, blocks },
+    sort_order: page.sortOrder ?? null,
   };
 }
 
@@ -63,8 +65,9 @@ async function backupToGitHub(page: PageData): Promise<string | undefined> {
 export async function getPages(): Promise<PageData[]> {
   const { data, error } = await supabase
     .from("pages")
-    .select("slug, title, body")
+    .select("slug, title, body, sort_order")
     .neq("slug", "home") // home 페이지는 사이드바에 표시 안 함
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("title");
   if (error) throw new Error(`getPages: ${error.message}`);
   return (data as PageRow[]).map(rowToPage);
@@ -73,7 +76,7 @@ export async function getPages(): Promise<PageData[]> {
 export async function getPage(slug: string): Promise<PageData | undefined> {
   const { data, error } = await supabase
     .from("pages")
-    .select("slug, title, body")
+    .select("slug, title, body, sort_order")
     .eq("slug", slug)
     .single();
   // PGRST116 = no rows — 정상적인 "없음" 케이스
@@ -82,6 +85,29 @@ export async function getPage(slug: string): Promise<PageData | undefined> {
     throw new Error(`getPage(${slug}): ${error.message}`);
   }
   return rowToPage(data as PageRow);
+}
+
+// 신규 페이지가 목록 맨 뒤에 오도록, 현재 가장 큰 sort_order + 1을 반환한다.
+export async function getNextPageSortOrder(): Promise<number> {
+  const { data, error } = await supabase
+    .from("pages")
+    .select("sort_order")
+    .order("sort_order", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`getNextPageSortOrder: ${error.message}`);
+  return (data?.sort_order ?? -1) + 1;
+}
+
+// orderedSlugs의 순서대로 sort_order(0, 1, 2, ...)를 일괄 반영한다.
+export async function reorderPages(orderedSlugs: string[]): Promise<void> {
+  const results = await Promise.all(
+    orderedSlugs.map((slug, index) =>
+      supabase.from("pages").update({ sort_order: index }).eq("slug", slug)
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw new Error(`reorderPages: ${failed.error.message}`);
 }
 
 export async function deletePage(slug: string): Promise<void> {

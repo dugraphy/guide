@@ -4,6 +4,7 @@ export interface PageData {
   title: string;
   description: string;
   body: string;
+  sortOrder?: number | null;
 }
 
 export const PAGES: PageData[] = [

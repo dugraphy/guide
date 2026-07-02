@@ -78,7 +78,6 @@ export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }:
   return (
     <>
       <EditablePageHeader
-        icon={page.icon}
         title={page.title}
         onTitleChange={handleTitleChange}
         isNew={isNew}

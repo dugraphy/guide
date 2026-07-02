@@ -7,12 +7,11 @@ import { useState } from "react";
 interface Props {
   slug: string;
   href: string;
-  icon: string;
   label: string;
   canEdit: boolean;
 }
 
-export default function PageSidebarItem({ slug, href, icon, label, canEdit }: Props) {
+export default function PageSidebarItem({ slug, href, label, canEdit }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const isActive = pathname === href;
@@ -37,8 +36,7 @@ export default function PageSidebarItem({ slug, href, icon, label, canEdit }: Pr
       className={`group flex items-center h-7 rounded text-sm text-[var(--fg)] transition-colors
         ${isActive ? "bg-[var(--active)]" : "hover:bg-[var(--hover)]"}`}
     >
-      <Link href={href} className="flex items-center gap-1.5 flex-1 min-w-0 pl-2">
-        <span className="w-5 text-center text-base leading-none shrink-0">{icon}</span>
+      <Link href={href} className="flex items-center flex-1 min-w-0 pl-2">
         <span className="truncate">{label}</span>
       </Link>
       {canEdit && (

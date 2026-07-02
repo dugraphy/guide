@@ -11,7 +11,6 @@ const SAVE_LABEL: Record<SaveStatus, string> = {
 };
 
 interface Props {
-  icon?: string;
   title: string;
   onTitleChange: (title: string) => void;
   isNew?: boolean;
@@ -21,7 +20,6 @@ interface Props {
 }
 
 export default function EditablePageHeader({
-  icon,
   title,
   onTitleChange,
   isNew,
@@ -57,7 +55,6 @@ export default function EditablePageHeader({
           </button>
         </div>
       )}
-      {icon && <div className="text-5xl mb-3">{icon}</div>}
       <input
         ref={inputRef}
         type="text"

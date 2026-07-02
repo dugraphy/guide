@@ -41,6 +41,7 @@ export interface DatabaseDef {
   name: string;
   slug: string;
   columns: Column[];
+  sort_order: number | null;
 }
 
 export interface DatabaseRow {
@@ -52,7 +53,7 @@ export interface DatabaseRow {
 
 // ── 초기 데이터 ──────────────────────────────────────────────────────────────
 
-const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
+const SEED_DATABASES: Array<Omit<DatabaseDef, "id" | "sort_order">> = [
   {
     name: "클라이언트 관리",
     slug: "clients",
@@ -135,11 +136,11 @@ const SEED_DATABASES: Array<Omit<DatabaseDef, "id">> = [
 ];
 
 async function seedDatabases() {
-  for (const db of SEED_DATABASES) {
+  for (const [index, db] of SEED_DATABASES.entries()) {
     await supabase
       .from("databases")
       .upsert(
-        { name: db.name, slug: db.slug, columns: db.columns },
+        { name: db.name, slug: db.slug, columns: db.columns, sort_order: index },
         { onConflict: "slug", ignoreDuplicates: true }
       );
   }
@@ -216,7 +217,8 @@ export async function syncMemoAcrossDBs(
 export async function getDatabases(): Promise<DatabaseDef[]> {
   const { data, error } = await supabase
     .from("databases")
-    .select("id, name, slug, columns")
+    .select("id, name, slug, columns, sort_order")
+    .order("sort_order", { ascending: true, nullsFirst: false })
     .order("name");
   if (error) throw new Error(`getDatabases: ${error.message}`);
 
@@ -228,7 +230,8 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
     await seedDatabases();
     const { data: seeded } = await supabase
       .from("databases")
-      .select("id, name, slug, columns")
+      .select("id, name, slug, columns, sort_order")
+      .order("sort_order", { ascending: true, nullsFirst: false })
       .order("name");
     return (seeded ?? []) as DatabaseDef[];
   }
@@ -257,7 +260,7 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
 export async function getDatabase(slug: string): Promise<DatabaseDef | undefined> {
   const { data, error } = await supabase
     .from("databases")
-    .select("id, name, slug, columns")
+    .select("id, name, slug, columns, sort_order")
     .eq("slug", slug)
     .single();
   if (error) {
@@ -265,6 +268,17 @@ export async function getDatabase(slug: string): Promise<DatabaseDef | undefined
     throw new Error(`getDatabase(${slug}): ${error.message}`);
   }
   return data as DatabaseDef;
+}
+
+// orderedSlugs의 순서대로 sort_order(0, 1, 2, ...)를 일괄 반영한다.
+export async function reorderDatabases(orderedSlugs: string[]): Promise<void> {
+  const results = await Promise.all(
+    orderedSlugs.map((slug, index) =>
+      supabase.from("databases").update({ sort_order: index }).eq("slug", slug)
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) throw new Error(`reorderDatabases: ${failed.error.message}`);
 }
 
 export async function getRows(databaseId: string): Promise<DatabaseRow[]> {

@@ -2,12 +2,13 @@ import { getPages } from "@/lib/pages";
 import { getDatabases } from "@/lib/databases";
 import { getSessionUser } from "@/lib/auth";
 import SidebarItem from "./SidebarItem";
-import PageSidebarItem from "./PageSidebarItem";
+import SortablePagesList from "./SortablePagesList";
+import SortableDatabasesList from "./SortableDatabasesList";
 import NewPageButton from "./NewPageButton";
 import AuthSection from "./AuthSection";
 
 const NAV_ITEMS = [
-  { href: "/", icon: "🏠", label: "홈" },
+  { href: "/", label: "홈" },
 ];
 
 export default async function Sidebar() {
@@ -40,16 +41,7 @@ export default async function Sidebar() {
           </span>
         </div>
 
-        {pages.map((page) => (
-          <PageSidebarItem
-            key={page.slug}
-            slug={page.slug}
-            href={`/page/${page.slug}`}
-            icon={page.icon}
-            label={page.title}
-            canEdit={role === "owner"}
-          />
-        ))}
+        <SortablePagesList pages={pages} canEdit={role === "owner"} />
 
         {role === "owner" && <NewPageButton />}
 
@@ -60,14 +52,7 @@ export default async function Sidebar() {
                 데이터베이스
               </span>
             </div>
-            {databases.map((db) => (
-              <SidebarItem
-                key={db.slug}
-                href={`/db/${db.slug}`}
-                icon="🗄️"
-                label={db.name}
-              />
-            ))}
+            <SortableDatabasesList databases={databases} canEdit={role === "owner"} />
           </>
         )}
       </nav>

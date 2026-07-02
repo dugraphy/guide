@@ -14,4 +14,5 @@ export interface PageRow {
     description?: string;
     blocks?: unknown[];
   };
+  sort_order: number | null;
 }

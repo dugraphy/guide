@@ -1,4 +1,4 @@
-import { getPages, upsertPage } from "@/lib/pages";
+import { getPages, getPage, getNextPageSortOrder, upsertPage } from "@/lib/pages";
 import { requireOwnerOrForbidden } from "@/lib/auth";
 import type { PageData } from "@/lib/data";
 
@@ -17,6 +17,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "slug is required" }, { status: 400 });
   }
 
+  // 새 페이지는 목록 맨 뒤에, 기존 페이지는 저장 때마다 순서가
+  // 바뀌지 않도록 현재 sort_order를 그대로 유지한다.
+  const existing = await getPage(page.slug);
+  page.sortOrder = existing ? existing.sortOrder : await getNextPageSortOrder();
+
   const result = await upsertPage(page);
-  return Response.json(result, { status: result.sha ? 200 : 201 });
+  return Response.json(result, { status: existing ? 200 : 201 });
 }
