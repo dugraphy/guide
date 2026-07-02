@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Sidebar from "@/components/sidebar/Sidebar";
+import { ToastContainer } from "@/components/Toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default async function RootLayout({
       <body className="h-full flex">
         {!hideSidebar && <Sidebar />}
         <main className="flex-1 overflow-y-auto">{children}</main>
+        <ToastContainer />
       </body>
     </html>
   );

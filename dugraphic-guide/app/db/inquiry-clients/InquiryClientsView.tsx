@@ -8,6 +8,8 @@ import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
 import { ClientNameCell } from "@/components/table/ClientNameCell";
+import { Spinner } from "@/components/Spinner";
+import { showErrorToast } from "@/components/Toast";
 
 const TABS = ["전체", "예정", "상담중", "작업중", "완료", "보류"];
 const INDUSTRY_OPTIONS = ["쇼핑몰", "병의원", "숙박업", "기업", "기타"];
@@ -39,6 +41,10 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const rowsRef = useRef<DatabaseRow[]>(initialRows);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // rowId -> { colId: 저장 시작 전 마지막 확정값 } — 실패 시 롤백용.
+  const pendingPrev = useRef<Record<string, Record<string, string>>>({});
+  // "rowId:colId" — 현재 저장 요청이 진행 중인 셀(작은 스피너 표시용).
+  const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState(TABS.includes(initialTab as typeof TABS[number]) ? initialTab : "전체");
 
   const { widths, containerRef, startResize, getWidth, totalWidth, allowScroll } = useResizableColumns(
@@ -63,21 +69,49 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
     router.replace(`/db/inquiry-clients${p.toString() ? `?${p}` : ""}`, { scroll: false });
   };
 
+  // 낙관적 업데이트: 화면 즉시 반영 → 백그라운드 저장 → 실패 시 이전 값으로
+  // 롤백 + 에러 토스트.
   const handleCellUpdate = useCallback(
     (rowId: string, colId: string, value: string) => {
+      if (!pendingPrev.current[rowId]) pendingPrev.current[rowId] = {};
+      if (!(colId in pendingPrev.current[rowId])) {
+        const current = rowsRef.current.find((r) => r.id === rowId);
+        pendingPrev.current[rowId][colId] = current?.data[colId] ?? "";
+      }
+
       rowsRef.current = rowsRef.current.map((r) =>
         r.id === rowId ? { ...r, data: { ...r.data, [colId]: value } } : r
       );
       setRows([...rowsRef.current]);
+      setSavingCells((prev) => new Set(prev).add(`${rowId}:${colId}`));
+
       if (saveTimers.current[rowId]) clearTimeout(saveTimers.current[rowId]);
       saveTimers.current[rowId] = setTimeout(async () => {
         const row = rowsRef.current.find((r) => r.id === rowId);
+        const prevValues = pendingPrev.current[rowId] ?? {};
+        const dirtyCols = Object.keys(prevValues);
+        delete pendingPrev.current[rowId];
         if (!row) return;
-        await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(row.data),
-        });
+        try {
+          const res = await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(row.data),
+          });
+          if (!res.ok) throw new Error("save failed");
+        } catch {
+          rowsRef.current = rowsRef.current.map((r) =>
+            r.id === rowId ? { ...r, data: { ...r.data, ...prevValues } } : r
+          );
+          setRows([...rowsRef.current]);
+          showErrorToast("저장에 실패했습니다. 이전 값으로 되돌렸습니다.");
+        } finally {
+          setSavingCells((prev) => {
+            const next = new Set(prev);
+            dirtyCols.forEach((c) => next.delete(`${rowId}:${c}`));
+            return next;
+          });
+        }
       }, 600);
     },
     [db.slug]
@@ -85,17 +119,36 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
 
   // 업체명은 debounce 없이 blur 시점(확인 다이얼로그 통과 후)에만 즉시 저장한다.
   const handleClientNameCommit = async (rowId: string, newName: string) => {
+    const before = rowsRef.current.find((r) => r.id === rowId);
+    const prevName = before?.data["업체명"] ?? "";
     rowsRef.current = rowsRef.current.map((r) =>
       r.id === rowId ? { ...r, data: { ...r.data, 업체명: newName } } : r
     );
     setRows([...rowsRef.current]);
     const row = rowsRef.current.find((r) => r.id === rowId);
     if (!row) return;
-    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(row.data),
-    });
+    const cellKey = `${rowId}:업체명`;
+    setSavingCells((prev) => new Set(prev).add(cellKey));
+    try {
+      const res = await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(row.data),
+      });
+      if (!res.ok) throw new Error("save failed");
+    } catch {
+      rowsRef.current = rowsRef.current.map((r) =>
+        r.id === rowId ? { ...r, data: { ...r.data, 업체명: prevName } } : r
+      );
+      setRows([...rowsRef.current]);
+      showErrorToast("클라이언트명 저장에 실패했습니다. 이전 값으로 되돌렸습니다.");
+    } finally {
+      setSavingCells((prev) => {
+        const next = new Set(prev);
+        next.delete(cellKey);
+        return next;
+      });
+    }
   };
 
   const handleAddRow = async () => {
@@ -189,6 +242,9 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                 <tr key={row.id} className={TABLE.tr(idx)}>
                   {/* 업체명 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:업체명`) && (
+                      <Spinner className="absolute top-1.5 right-6" />
+                    )}
                     {canEdit ? (
                       <div className="flex items-center gap-0.5 pr-1">
                         <ClientNameCell
@@ -217,6 +273,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 이름 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:이름`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     {canEdit ? (
                       <input type="text" value={row.data["이름"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "이름", e.target.value)} className={TABLE.cellInput} placeholder="-" />
                     ) : (
@@ -225,6 +282,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 연락처 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:연락처`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     {canEdit ? (
                       <input type="text" value={row.data["연락처"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "연락처", e.target.value)} className={TABLE.cellInput} placeholder="-" />
                     ) : (
@@ -233,6 +291,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 상담목적 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:상담목적`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     {canEdit ? (
                       <input type="text" value={row.data["상담목적"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "상담목적", e.target.value)} className={TABLE.cellInput} placeholder="-" />
                     ) : (
@@ -241,6 +300,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 업종 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:업종`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     <div className="px-2 py-2">
                       {canEdit ? (
                         <BadgeSelect colId="업종" value={row.data["업종"] ?? ""} options={INDUSTRY_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "업종", v)} />
@@ -251,6 +311,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 예산범위 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:예산범위`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     {canEdit ? (
                       <input type="text" value={row.data["예산범위"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "예산범위", e.target.value)} className={TABLE.cellInput} placeholder="-" />
                     ) : (
@@ -259,6 +320,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 희망기간 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:희망기간`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     {canEdit ? (
                       <input type="text" value={row.data["희망기간"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "희망기간", e.target.value)} className={TABLE.cellInput} placeholder="-" />
                     ) : (
@@ -267,6 +329,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 진행여부 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:진행여부`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     <div className="px-2 py-2">
                       {canEdit ? (
                         <BadgeSelect colId="진행여부" value={row.data["진행여부"] ?? ""} options={STATUS_OPTIONS} onChange={(v) => handleCellUpdate(row.id, "진행여부", v)} />
@@ -277,6 +340,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
                   </td>
                   {/* 등록일 */}
                   <td className={TABLE.td}>
+                    {savingCells.has(`${row.id}:등록일`) && <Spinner className="absolute top-1.5 right-1.5" />}
                     {canEdit ? (
                       <input type="date" value={row.data["등록일"] ?? ""} onChange={(e) => handleCellUpdate(row.id, "등록일", e.target.value)} className={TABLE.cellSelect} />
                     ) : (

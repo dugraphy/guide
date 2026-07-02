@@ -8,6 +8,8 @@ import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BadgeSelect, StaticBadge } from "@/components/table/BadgeSelect";
 import { ClientNameCell } from "@/components/table/ClientNameCell";
+import { Spinner } from "@/components/Spinner";
+import { showErrorToast } from "@/components/Toast";
 
 const SLUG_STORAGE_KEY: Record<string, string> = {
   clients: "column-widths-companies",
@@ -43,6 +45,10 @@ export default function DatabaseView({
   const [rows, setRows] = useState<DatabaseRow[]>(initialRows);
   const rowsRef = useRef<DatabaseRow[]>(initialRows);
   const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // rowId -> { colId: 저장 시작 전 마지막 확정값 } — 실패 시 롤백용.
+  const pendingPrev = useRef<Record<string, Record<string, string>>>({});
+  // "rowId:colId" — 현재 저장 요청이 진행 중인 셀(작은 스피너 표시용).
+  const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
 
   // ── highlight ─────────────────────────────────────────────────────────────
   const [highlightId, setHighlightId] = useState<string | null>(() =>
@@ -109,22 +115,49 @@ export default function DatabaseView({
   const storageKey = SLUG_STORAGE_KEY[db.slug] ?? `column-widths-${db.slug}`;
   const { widths, containerRef, startResize, getWidth, totalWidth, allowScroll } = useResizableColumns(storageKey, defaultWidths);
 
-  // ── cell update ───────────────────────────────────────────────────────────
+  // ── cell update (낙관적 업데이트: 화면 즉시 반영 → 백그라운드 저장 →
+  // 실패 시 이전 값으로 롤백 + 에러 토스트) ──────────────────────────────────
   const handleCellUpdate = useCallback(
     (rowId: string, colId: string, value: string) => {
+      if (!pendingPrev.current[rowId]) pendingPrev.current[rowId] = {};
+      if (!(colId in pendingPrev.current[rowId])) {
+        const current = rowsRef.current.find((r) => r.id === rowId);
+        pendingPrev.current[rowId][colId] = current?.data[colId] ?? "";
+      }
+
       rowsRef.current = rowsRef.current.map((r) =>
         r.id === rowId ? { ...r, data: { ...r.data, [colId]: value } } : r
       );
       setRows([...rowsRef.current]);
+      setSavingCells((prev) => new Set(prev).add(`${rowId}:${colId}`));
+
       if (saveTimers.current[rowId]) clearTimeout(saveTimers.current[rowId]);
       saveTimers.current[rowId] = setTimeout(async () => {
         const row = rowsRef.current.find((r) => r.id === rowId);
+        const prevValues = pendingPrev.current[rowId] ?? {};
+        const dirtyCols = Object.keys(prevValues);
+        delete pendingPrev.current[rowId];
         if (!row) return;
-        await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(row.data),
-        });
+        try {
+          const res = await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(row.data),
+          });
+          if (!res.ok) throw new Error("save failed");
+        } catch {
+          rowsRef.current = rowsRef.current.map((r) =>
+            r.id === rowId ? { ...r, data: { ...r.data, ...prevValues } } : r
+          );
+          setRows([...rowsRef.current]);
+          showErrorToast("저장에 실패했습니다. 이전 값으로 되돌렸습니다.");
+        } finally {
+          setSavingCells((prev) => {
+            const next = new Set(prev);
+            dirtyCols.forEach((c) => next.delete(`${rowId}:${c}`));
+            return next;
+          });
+        }
       }, 600);
     },
     [db.slug]
@@ -132,17 +165,36 @@ export default function DatabaseView({
 
   // 업체명은 debounce 없이 blur 시점(확인 다이얼로그 통과 후)에만 즉시 저장한다.
   const handleClientNameCommit = async (rowId: string, newName: string) => {
+    const before = rowsRef.current.find((r) => r.id === rowId);
+    const prevName = before?.data["업체명"] ?? "";
     rowsRef.current = rowsRef.current.map((r) =>
       r.id === rowId ? { ...r, data: { ...r.data, 업체명: newName } } : r
     );
     setRows([...rowsRef.current]);
     const row = rowsRef.current.find((r) => r.id === rowId);
     if (!row) return;
-    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(row.data),
-    });
+    const cellKey = `${rowId}:업체명`;
+    setSavingCells((prev) => new Set(prev).add(cellKey));
+    try {
+      const res = await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(row.data),
+      });
+      if (!res.ok) throw new Error("save failed");
+    } catch {
+      rowsRef.current = rowsRef.current.map((r) =>
+        r.id === rowId ? { ...r, data: { ...r.data, 업체명: prevName } } : r
+      );
+      setRows([...rowsRef.current]);
+      showErrorToast("클라이언트명 저장에 실패했습니다. 이전 값으로 되돌렸습니다.");
+    } finally {
+      setSavingCells((prev) => {
+        const next = new Set(prev);
+        next.delete(cellKey);
+        return next;
+      });
+    }
   };
 
   const handleAddRow = async () => {
@@ -255,8 +307,12 @@ export default function DatabaseView({
                 >
                   {db.columns.map((col) => {
                     const value = row.data[col.id] ?? "";
+                    const isSaving = savingCells.has(`${row.id}:${col.id}`);
                     return (
                       <td key={col.id} className={TABLE.td}>
+                        {isSaving && (
+                          <Spinner className="absolute top-1.5 right-1.5" />
+                        )}
                         {col.type === "select" ? (
                           <div className="px-2 py-2">
                             {canEdit ? (

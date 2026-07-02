@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DatabaseDef, DatabaseRow } from "@/lib/databases";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { ResizableTh } from "@/components/table/ResizableTh";
 import { TABLE } from "@/components/table/tableStyles";
 import { BADGE_COLORS } from "@/components/table/BadgeSelect";
 import { ClientNameCell } from "@/components/table/ClientNameCell";
+import { Spinner } from "@/components/Spinner";
+import { showErrorToast } from "@/components/Toast";
 
 const CHECKLIST_COLS = [
   { id: "업체명", defaultWidth: 140 },
@@ -61,6 +63,11 @@ function ViewModal({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // 저장 실패로 부모가 이전 값으로 롤백하면 이 값도 함께 되돌아가야 한다.
+  useEffect(() => {
+    setMemo(row.data["메모"] ?? "");
+  }, [row.data]);
+
   let entries: { q: string; a: string }[] = [];
   try {
     const parsed = JSON.parse((row.data[ANSWER_KEY] as string) || "[]");
@@ -77,6 +84,8 @@ function ViewModal({
       await onMemoSave(memo);
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
+    } catch {
+      // 실패 시 표시는 부모의 에러 토스트 + 값 롤백(위 useEffect)이 담당한다.
     } finally {
       setSaving(false);
     }
@@ -323,6 +332,8 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
   const [search, setSearch] = useState("");
   const [industry, setIndustry] = useState("");
   const [sortDesc, setSortDesc] = useState(true);
+  // "rowId:field" — 현재 저장 요청이 진행 중인 셀(작은 스피너 표시용).
+  const [savingCells, setSavingCells] = useState<Set<string>>(new Set());
 
   const answerCol = db.columns.find((c) => c.id === ANSWER_KEY);
   const questions = answerCol?.questions ?? [];
@@ -371,31 +382,62 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
     if (selectedRow?.id === rowId) setSelectedRow(null);
   };
 
+  // 낙관적 업데이트: 화면 즉시 반영 → 백그라운드 저장 → 실패 시 이전 값으로
+  // 롤백 + 에러 토스트.
   const handleClientNameCommit = async (rowId: string, newName: string) => {
     const target = rows.find((r) => r.id === rowId);
     if (!target) return;
+    const prevData = target.data;
     const updatedData = { ...target.data, 업체명: newName };
-    await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedData),
-    });
     const updated = { ...target, data: updatedData };
     setRows((prev) => prev.map((r) => (r.id === rowId ? updated : r)));
     if (selectedRow?.id === rowId) setSelectedRow(updated);
+
+    const cellKey = `${rowId}:업체명`;
+    setSavingCells((prev) => new Set(prev).add(cellKey));
+    try {
+      const res = await fetch(`/api/databases/${db.slug}/rows/${rowId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData),
+      });
+      if (!res.ok) throw new Error("save failed");
+    } catch {
+      const reverted = { ...target, data: prevData };
+      setRows((prev) => prev.map((r) => (r.id === rowId ? reverted : r)));
+      if (selectedRow?.id === rowId) setSelectedRow(reverted);
+      showErrorToast("클라이언트명 저장에 실패했습니다. 이전 값으로 되돌렸습니다.");
+    } finally {
+      setSavingCells((prev) => {
+        const next = new Set(prev);
+        next.delete(cellKey);
+        return next;
+      });
+    }
   };
 
   const handleMemoSave = async (memo: string) => {
     if (!selectedRow) return;
-    const updatedData = { ...selectedRow.data, 메모: memo };
-    await fetch(`/api/databases/${db.slug}/rows/${selectedRow.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updatedData),
-    });
-    const updated = { ...selectedRow, data: updatedData };
-    setRows((prev) => prev.map((r) => (r.id === selectedRow.id ? updated : r)));
+    const target = selectedRow;
+    const prevData = target.data;
+    const updatedData = { ...target.data, 메모: memo };
+    const updated = { ...target, data: updatedData };
+    setRows((prev) => prev.map((r) => (r.id === target.id ? updated : r)));
     setSelectedRow(updated);
+    try {
+      const res = await fetch(`/api/databases/${db.slug}/rows/${target.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData),
+      });
+      if (!res.ok) throw new Error("save failed");
+    } catch {
+      const reverted = { ...target, data: prevData };
+      setRows((prev) => prev.map((r) => (r.id === target.id ? reverted : r)));
+      setSelectedRow((cur) => (cur?.id === target.id ? reverted : cur));
+      showErrorToast("메모 저장에 실패했습니다. 이전 값으로 되돌렸습니다.");
+      throw new Error("save failed");
+    }
   };
 
   return (
@@ -477,6 +519,9 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
                     className={`cursor-pointer ${TABLE.tr(idx)}`}
                   >
                     <td className={TABLE.td}>
+                      {savingCells.has(`${row.id}:업체명`) && (
+                        <Spinner className="absolute top-1.5 right-1.5" />
+                      )}
                       {canEdit ? (
                         <ClientNameCell
                           value={row.data["업체명"] ?? ""}

@@ -3,7 +3,7 @@ export const TABLE = {
   table: "text-sm border-collapse",
   th: "relative text-left px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-r border-[var(--border)] whitespace-nowrap select-none overflow-visible",
   thAction: "w-10 bg-[var(--bg-secondary)] border-b border-[var(--border)]",
-  td: "border-b border-r border-[var(--border)] p-0",
+  td: "relative border-b border-r border-[var(--border)] p-0",
   tdAction: "border-b border-[var(--border)] w-10 text-center",
   thSpacer: "bg-[var(--bg-secondary)] border-b border-[var(--border)]",
   tdSpacer: "border-b border-[var(--border)]",
