@@ -39,7 +39,7 @@ export default function EditablePageHeader({
   }, [isNew]);
 
   return (
-    <div className="max-w-3xl px-24 pt-16 pb-4">
+    <div className="px-8 pt-16 pb-4">
       {onSave && (
         <div className="flex justify-end mb-4">
           <button
