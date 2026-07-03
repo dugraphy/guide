@@ -133,12 +133,15 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   });
   const titleEndRow = sheet.rowCount;
 
-  // 상호명(브랜드) — "견적서" 제목 바로 위에 작게, 연한 회색으로 표시
-  sheet.mergeCells(titleStartRow, 1, titleStartRow, 2);
-  const brandCell = sheet.getCell(titleStartRow, 1);
-  brandCell.value = businessProfile.companyName;
-  brandCell.font = { name: FONT_NAME, size: 13, color: { argb: "FFA6A6A6" } };
-  brandCell.alignment = { horizontal: "center", vertical: "middle" };
+  // 로고 — "견적서" 제목 위쪽에 작게 삽입 (원본 비율 유지, 높이 약 60px 기준)
+  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
+  const logoImageId = workbook.addImage({ buffer: logoBuffer, extension: "png" });
+  const LOGO_HEIGHT = 60;
+  const LOGO_WIDTH = Math.round((LOGO_HEIGHT * 2075) / 529); // 원본 로고 비율(2075x529) 유지
+  sheet.addImage(logoImageId, {
+    tl: { col: 0, row: titleStartRow - 1 },
+    ext: { width: LOGO_WIDTH, height: LOGO_HEIGHT },
+  });
 
   sheet.mergeCells(titleStartRow + 1, 1, titleEndRow, 2);
   const titleCell = sheet.getCell(titleStartRow + 1, 1);
