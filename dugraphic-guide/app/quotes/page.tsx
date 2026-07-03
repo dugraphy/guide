@@ -53,10 +53,11 @@ export default async function QuotesPage() {
               </thead>
               <tbody>
                 {quotes.map((quote, idx) => {
-                  const total = quote.items.reduce(
+                  const supplyTotal = quote.items.reduce(
                     (sum, item) => sum + item.discountPrice * item.qty,
                     0
                   );
+                  const total = quote.vatIncluded ? supplyTotal * 1.1 : supplyTotal;
                   return (
                     <tr
                       key={quote.id}

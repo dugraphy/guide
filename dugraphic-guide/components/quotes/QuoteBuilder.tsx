@@ -3,11 +3,23 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import type { BusinessProfile } from "@/lib/businessProfile";
 import type { QuoteItem, QuoteType } from "@/lib/quotes";
 import { formatCurrency } from "@/lib/format";
 import { TABLE } from "@/components/table/tableStyles";
+
+type VatMode = "exclusive" | "inclusive";
+
+const HEADER_FILL = { fgColor: { rgb: "F2F2F2" } };
+const THIN_BORDER_SIDE = { style: "thin", color: { rgb: "CCCCCC" } } as const;
+const THIN_BORDER = {
+  top: THIN_BORDER_SIDE,
+  bottom: THIN_BORDER_SIDE,
+  left: THIN_BORDER_SIDE,
+  right: THIN_BORDER_SIDE,
+};
+const MONEY_FORMAT = "#,##0";
 
 const DEFAULT_NOTES: Record<QuoteType, string> = {
   리뉴얼:
@@ -44,23 +56,30 @@ export default function QuoteBuilder({ businessProfile }: Props) {
   const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
   const [depositRate, setDepositRate] = useState(30);
   const [notes, setNotes] = useState("");
+  const [vatMode, setVatMode] = useState<VatMode>("exclusive");
   const [downloading, setDownloading] = useState(false);
 
   const totals = useMemo(() => {
     const totalBeforeDiscount = items.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
     const totalAfterDiscount = items.reduce((sum, it) => sum + it.discountPrice * it.qty, 0);
     const discountAmount = totalBeforeDiscount - totalAfterDiscount;
-    const deposit = totalAfterDiscount * (depositRate / 100);
-    const balance = totalAfterDiscount - deposit;
+    const vat = vatMode === "inclusive" ? totalAfterDiscount * 0.1 : 0;
+    const grandTotal = totalAfterDiscount + vat;
+    // 계약금/잔금의 기준 금액: 부가세 포함이면 합계금액, 별도면 공급가액(할인 후)
+    const depositBase = vatMode === "inclusive" ? grandTotal : totalAfterDiscount;
+    const deposit = depositBase * (depositRate / 100);
+    const balance = depositBase - deposit;
     return {
       totalBeforeDiscount,
       totalAfterDiscount,
       discountAmount,
+      vat,
+      grandTotal,
       deposit,
       balance,
-      totalBilled: totalAfterDiscount,
+      totalBilled: depositBase,
     };
-  }, [items, depositRate]);
+  }, [items, depositRate, vatMode]);
 
   const selectType = (type: QuoteType) => {
     setQuoteType(type);
@@ -74,6 +93,7 @@ export default function QuoteBuilder({ businessProfile }: Props) {
     setItems([emptyItem()]);
     setDepositRate(30);
     setNotes("");
+    setVatMode("exclusive");
   };
 
   const updateItem = (index: number, patch: Partial<QuoteItem>) => {
@@ -92,18 +112,31 @@ export default function QuoteBuilder({ businessProfile }: Props) {
     setDownloading(true);
     try {
       const rows: (string | number)[][] = [];
-      rows.push(["견적서"]);
-      rows.push([]);
-      rows.push(["상호", businessProfile.companyName, "", "사업자번호", businessProfile.businessNumber]);
-      rows.push(["대표자", businessProfile.ownerName, "", "전화번호", businessProfile.phone]);
-      rows.push(["주소", businessProfile.address, "", "이메일", businessProfile.email]);
-      rows.push([]);
-      rows.push(["의뢰인명", clientName, "", "견적일자", quoteDate]);
-      rows.push(["견적유형", quoteType]);
-      rows.push([]);
-      rows.push(["No", "품목", "단가", "할인단가", "수량", "공급가(부가세 별도)", "비고"]);
+      const labelCells: [number, number][] = []; // 굵게 + 배경색만 (테두리 없음)
+      let r = 0;
+      const push = (row: (string | number)[]) => {
+        rows.push(row);
+        return r++;
+      };
+
+      const titleRow = push(["견적서"]);
+      push([]);
+      const bizRow1 = push(["상호", businessProfile.companyName, "", "사업자번호", businessProfile.businessNumber]);
+      const bizRow2 = push(["대표자", businessProfile.ownerName, "", "전화번호", businessProfile.phone]);
+      const bizRow3 = push(["주소", businessProfile.address, "", "이메일", businessProfile.email]);
+      push([]);
+      const clientRow = push(["의뢰인명", clientName, "", "견적일자", quoteDate]);
+      const typeRow = push(["견적유형", quoteType]);
+      [bizRow1, bizRow2, bizRow3, clientRow].forEach((row) => {
+        labelCells.push([row, 0], [row, 3]);
+      });
+      labelCells.push([typeRow, 0]);
+      push([]);
+
+      const itemsHeaderRow = push(["No", "품목", "단가", "할인단가", "수량", "공급가(부가세 별도)", "비고"]);
+      const itemsFirstRow = r;
       items.forEach((item, i) => {
-        rows.push([
+        push([
           i + 1,
           item.name,
           item.unitPrice,
@@ -113,28 +146,88 @@ export default function QuoteBuilder({ businessProfile }: Props) {
           item.note,
         ]);
       });
-      rows.push([]);
-      rows.push(["총 공급가액(할인 전)", totals.totalBeforeDiscount]);
-      rows.push(["할인 금액", totals.discountAmount]);
-      rows.push(["총 공급가액(할인 후)", totals.totalAfterDiscount]);
-      rows.push([`계약금 (${depositRate}%)`, totals.deposit]);
-      rows.push(["잔금", totals.balance]);
-      rows.push(["총 청구액", totals.totalBilled]);
-      rows.push(["* 상기 금액은 부가세 별도입니다."]);
-      rows.push([]);
-      rows.push(["안내사항"]);
-      notes.split("\n").forEach((line) => rows.push([line]));
+      const itemsLastRow = r - 1;
+      push([]);
+
+      const totalsStartRow = r;
+      push(["총 공급가액(할인 전)", totals.totalBeforeDiscount]);
+      push(["할인 금액", totals.discountAmount]);
+      push(["총 공급가액(할인 후)", totals.totalAfterDiscount]);
+      if (vatMode === "inclusive") {
+        push(["부가세(10%)", totals.vat]);
+        push(["합계금액", totals.grandTotal]);
+      }
+      push([`계약금 (${depositRate}%)`, totals.deposit]);
+      push(["잔금", totals.balance]);
+      push(["총 청구액", totals.totalBilled]);
+      const totalsEndRow = r - 1;
+      push([
+        vatMode === "inclusive"
+          ? "* 부가세(10%)가 포함된 금액입니다."
+          : "* 상기 금액은 부가세 별도입니다.",
+      ]);
+      push([]);
+      push(["안내사항"]);
+      notes.split("\n").forEach((line) => push([line]));
 
       const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      // 열 너비 — 품목명은 넓게, 금액 열은 숫자가 안 잘리도록
       ws["!cols"] = [
         { wch: 16 },
-        { wch: 24 },
+        { wch: 26 },
         { wch: 12 },
         { wch: 12 },
         { wch: 8 },
-        { wch: 18 },
+        { wch: 16 },
         { wch: 20 },
       ];
+
+      // 제목 셀: 여러 열 병합 + 크게
+      ws["!merges"] = [{ s: { r: titleRow, c: 0 }, e: { r: titleRow, c: 6 } }];
+
+      const setStyle = (rowIdx: number, colIdx: number, style: Record<string, unknown>) => {
+        const addr = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
+        const cell = ws[addr] ?? (ws[addr] = { t: "s", v: "" });
+        cell.s = { ...(cell.s as object), ...style };
+      };
+
+      setStyle(titleRow, 0, {
+        font: { bold: true, sz: 18 },
+        alignment: { horizontal: "center", vertical: "center" },
+      });
+
+      // 라벨 셀(사업자정보/견적정보) — 굵게 + 연한 회색 배경
+      labelCells.forEach(([rowIdx, colIdx]) => {
+        setStyle(rowIdx, colIdx, { font: { bold: true }, fill: HEADER_FILL });
+      });
+
+      // 품목표: 헤더 굵게+배경색, 전체(헤더+본문) 테두리, 금액 열 천단위 콤마
+      for (let c = 0; c <= 6; c++) {
+        setStyle(itemsHeaderRow, c, {
+          font: { bold: true },
+          fill: HEADER_FILL,
+          alignment: { horizontal: "center", vertical: "center" },
+          border: THIN_BORDER,
+        });
+      }
+      for (let rr = itemsFirstRow; rr <= itemsLastRow; rr++) {
+        for (let c = 0; c <= 6; c++) {
+          setStyle(rr, c, { border: THIN_BORDER });
+        }
+        // 단가(2) / 할인단가(3) / 공급가(5)
+        [2, 3, 5].forEach((c) => {
+          const addr = XLSX.utils.encode_cell({ r: rr, c });
+          if (ws[addr]) ws[addr].z = MONEY_FORMAT;
+        });
+      }
+
+      // 합계 영역: 금액 열(1번 컬럼) 천단위 콤마
+      for (let rr = totalsStartRow; rr <= totalsEndRow; rr++) {
+        const addr = XLSX.utils.encode_cell({ r: rr, c: 1 });
+        if (ws[addr]) ws[addr].z = MONEY_FORMAT;
+      }
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "견적서");
       XLSX.writeFile(wb, `견적서_${clientName}_${quoteDate}.xlsx`);
@@ -142,7 +235,15 @@ export default function QuoteBuilder({ businessProfile }: Props) {
       const res = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientName, quoteDate, quoteType, items, depositRate, notes }),
+        body: JSON.stringify({
+          clientName,
+          quoteDate,
+          quoteType,
+          items,
+          depositRate,
+          notes,
+          vatIncluded: vatMode === "inclusive",
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -324,7 +425,31 @@ export default function QuoteBuilder({ businessProfile }: Props) {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold text-[var(--fg)] mb-3">합계</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-[var(--fg)]">합계</h2>
+          <div className="inline-flex rounded-lg border border-[var(--border)] p-0.5">
+            <button
+              onClick={() => setVatMode("exclusive")}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                vatMode === "exclusive"
+                  ? "bg-[var(--accent)] text-white"
+                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+              }`}
+            >
+              부가세 별도
+            </button>
+            <button
+              onClick={() => setVatMode("inclusive")}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                vatMode === "inclusive"
+                  ? "bg-[var(--accent)] text-white"
+                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+              }`}
+            >
+              부가세 포함
+            </button>
+          </div>
+        </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-2 text-sm max-w-md ml-auto">
           <div className="flex justify-between">
             <span className="text-[var(--fg-muted)]">총 공급가액(할인 전)</span>
@@ -338,6 +463,18 @@ export default function QuoteBuilder({ businessProfile }: Props) {
             <span className="text-[var(--fg-muted)]">총 공급가액(할인 후)</span>
             <span className="text-[var(--fg)]">{formatCurrency(totals.totalAfterDiscount)}</span>
           </div>
+          {vatMode === "inclusive" && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">부가세(10%)</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.vat)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">합계금액</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.grandTotal)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between items-center">
             <span className="text-[var(--fg-muted)]">계약금 비율</span>
             <span className="flex items-center gap-1 text-[var(--fg)]">
@@ -362,7 +499,9 @@ export default function QuoteBuilder({ businessProfile }: Props) {
             <span>총 청구액</span>
             <span>{formatCurrency(totals.totalBilled)}</span>
           </div>
-          <p className="text-xs text-[var(--fg-muted)] pt-1">* 부가세 별도</p>
+          <p className="text-xs text-[var(--fg-muted)] pt-1">
+            {vatMode === "inclusive" ? "* 부가세(10%) 포함 금액입니다" : "* 부가세 별도"}
+          </p>
         </div>
       </section>
 

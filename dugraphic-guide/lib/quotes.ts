@@ -9,6 +9,7 @@
  *   items        jsonb not null default '[]'::jsonb,  -- QuoteItem[]
  *   deposit_rate numeric not null default 30,
  *   notes        text not null default '',
+ *   vat_included boolean not null default false,
  *   created_at   timestamptz not null default now()
  * );
  *
@@ -37,6 +38,7 @@ export interface QuoteRow {
   items: QuoteItem[];
   depositRate: number;
   notes: string;
+  vatIncluded: boolean;
   createdAt: string;
 }
 
@@ -47,6 +49,7 @@ export interface NewQuote {
   items: QuoteItem[];
   depositRate: number;
   notes: string;
+  vatIncluded: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +62,7 @@ function rowToQuote(row: any): QuoteRow {
     items: row.items ?? [],
     depositRate: row.deposit_rate,
     notes: row.notes,
+    vatIncluded: row.vat_included,
     createdAt: row.created_at,
   };
 }
@@ -67,7 +71,7 @@ export async function getQuotes(): Promise<QuoteRow[]> {
   const supabaseAdmin = createAdminClient();
   const { data, error } = await supabaseAdmin
     .from("quotes")
-    .select("id, client_name, quote_date, quote_type, items, deposit_rate, notes, created_at")
+    .select("id, client_name, quote_date, quote_type, items, deposit_rate, notes, vat_included, created_at")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`getQuotes: ${error.message}`);
   return data.map(rowToQuote);
@@ -84,8 +88,9 @@ export async function createQuote(quote: NewQuote): Promise<QuoteRow> {
       items: quote.items,
       deposit_rate: quote.depositRate,
       notes: quote.notes,
+      vat_included: quote.vatIncluded,
     })
-    .select("id, client_name, quote_date, quote_type, items, deposit_rate, notes, created_at")
+    .select("id, client_name, quote_date, quote_type, items, deposit_rate, notes, vat_included, created_at")
     .single();
   if (error) throw new Error(`createQuote: ${error.message}`);
   return rowToQuote(data);

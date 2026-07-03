@@ -71,3 +71,8 @@ drop policy if exists "Owners can delete quotes" on public.quotes;
 create policy "Owners can delete quotes"
   on public.quotes for delete
   using (public.is_owner());
+
+-- vat_included: 이 견적서가 "부가세 포함" 기준으로 작성됐는지 여부. 목록
+-- 화면(/quotes)에서 총 청구액을 정확히 계산하려면 필요하다. Safe to re-run.
+alter table public.quotes
+  add column if not exists vat_included boolean not null default false;
