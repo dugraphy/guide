@@ -3,17 +3,20 @@
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import type { BlockNoteEditor } from "@blocknote/core";
 import type { PageData } from "@/lib/data";
 import { pageLinkSpec } from "./blocks/PageLinkBlock";
+import { todoSpec } from "./blocks/TodoBlock";
+import type { TemplateRow } from "@/lib/templates";
 
 // Custom schema — defined at module level so the reference stays stable across renders
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     pageLink: pageLinkSpec,
+    todo: todoSpec,
   },
 });
 
@@ -38,6 +41,7 @@ interface Props {
 
 export default function BlockEditor({ page, onBodyChange, editable = true }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [templates, setTemplates] = useState<TemplateRow[]>([]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editor = useCreateBlockNote({
@@ -45,6 +49,14 @@ export default function BlockEditor({ page, onBodyChange, editable = true }: Pro
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     initialContent: parseInitialContent(page.body) as any,
   });
+
+  useEffect(() => {
+    if (!editable) return;
+    fetch("/api/templates")
+      .then((r) => r.json())
+      .then(setTemplates)
+      .catch(() => {});
+  }, [editable]);
 
   const handleChange = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,6 +82,20 @@ export default function BlockEditor({ page, onBodyChange, editable = true }: Pro
           triggerCharacter="/"
           getItems={async (query) => {
             const defaults = getDefaultReactSlashMenuItems(editor);
+            const todoItem = {
+              title: "할일",
+              group: "기본",
+              icon: <span style={{ fontSize: "1.1em" }}>✅</span>,
+              onItemClick: () => {
+                const pos = editor.getTextCursorPosition();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor.insertBlocks as any)(
+                  [{ type: "todo", props: { checked: false, dueDate: "" } }],
+                  pos.block,
+                  "after"
+                );
+              },
+            };
             const pageLinkItem = {
               title: "페이지 링크",
               group: "미디어",
@@ -94,7 +120,17 @@ export default function BlockEditor({ page, onBodyChange, editable = true }: Pro
                 );
               },
             };
-            const all = [...defaults, pageLinkItem];
+            const templateItems = templates.map((tpl) => ({
+              title: tpl.name,
+              group: "템플릿",
+              icon: <span style={{ fontSize: "1.1em" }}>{tpl.icon}</span>,
+              onItemClick: () => {
+                const pos = editor.getTextCursorPosition();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor.insertBlocks as any)(tpl.blocks, pos.block, "after");
+              },
+            }));
+            const all = [...defaults, todoItem, pageLinkItem, ...templateItems];
             return query
               ? all.filter((item) =>
                   item.title.toLowerCase().includes(query.toLowerCase())
