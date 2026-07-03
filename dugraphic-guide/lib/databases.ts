@@ -22,7 +22,6 @@
  * write for owners only — enforced there, not with an open "for all" policy).
  */
 
-import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase-admin";
 
 // 클라이언트명 매칭용 정규화: 앞뒤 공백 제거, 대소문자 무시, 중간 공백은
@@ -356,8 +355,14 @@ export async function renameClientAcrossDBs(
 
 // ── 공개 API ─────────────────────────────────────────────────────────────────
 
+// databases/database_rows는 owner 전용 데이터라 RLS가 anon 키로는 아예 막혀
+// 있다(supabase/databases-owner-only.sql). 호출부(app/db/*/page.tsx,
+// app/api/databases/*)가 이미 requireOwnerOrForbidden()/redirect로 owner만
+// 통과시키므로, quotes/business_profile과 동일하게 서비스 롤 클라이언트로
+// 읽는다.
 export async function getDatabases(): Promise<DatabaseDef[]> {
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from("databases")
     .select("id, name, slug, columns, sort_order")
     .order("sort_order", { ascending: true, nullsFirst: false })
@@ -370,7 +375,7 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
 
   if (needsSeed) {
     await seedDatabases();
-    const { data: seeded } = await supabase
+    const { data: seeded } = await supabaseAdmin
       .from("databases")
       .select("id, name, slug, columns, sort_order")
       .order("sort_order", { ascending: true, nullsFirst: false })
@@ -379,7 +384,6 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
   }
 
   // Auto-sync column schemas: when seed options differ from the DB, update and migrate.
-  const supabaseAdmin = createAdminClient();
   for (const seedDb of SEED_DATABASES) {
     const existing = list.find((d) => d.slug === seedDb.slug);
     if (!existing) continue;
@@ -404,7 +408,8 @@ export async function getDatabases(): Promise<DatabaseDef[]> {
 }
 
 export async function getDatabase(slug: string): Promise<DatabaseDef | undefined> {
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from("databases")
     .select("id, name, slug, columns, sort_order")
     .eq("slug", slug)
@@ -430,7 +435,8 @@ export async function reorderDatabases(orderedSlugs: string[]): Promise<void> {
 }
 
 export async function getRows(databaseId: string): Promise<DatabaseRow[]> {
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from("database_rows")
     .select("id, database_id, data, created_at")
     .eq("database_id", databaseId)
@@ -440,7 +446,8 @@ export async function getRows(databaseId: string): Promise<DatabaseRow[]> {
 }
 
 export async function getRow(id: string): Promise<DatabaseRow | undefined> {
-  const { data, error } = await supabase
+  const supabaseAdmin = createAdminClient();
+  const { data, error } = await supabaseAdmin
     .from("database_rows")
     .select("id, database_id, data, created_at")
     .eq("id", id)

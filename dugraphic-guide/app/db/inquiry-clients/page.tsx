@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { getDatabase, getRows } from "@/lib/databases";
-import { getCanEdit } from "@/lib/auth";
+import { getCanEdit, getSessionUser } from "@/lib/auth";
 import InquiryClientsView from "./InquiryClientsView";
 
 export default async function InquiryClientsPage({
@@ -8,6 +8,11 @@ export default async function InquiryClientsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const { role } = await getSessionUser();
+  if (role !== "owner") {
+    redirect("/");
+  }
+
   const { tab } = await searchParams;
 
   const db = await getDatabase("inquiry-clients");

@@ -45,7 +45,7 @@ export default async function Sidebar() {
 
         {role === "owner" && <NewPageButton />}
 
-        {databases.length > 0 && (
+        {role === "owner" && databases.length > 0 && (
           <>
             <div className="mt-4 mb-1 px-2">
               <span className="text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wider">

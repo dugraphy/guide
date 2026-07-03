@@ -4,6 +4,9 @@ import { requireOwnerOrForbidden } from "@/lib/auth";
 import type { Column } from "@/lib/databases";
 
 export async function GET() {
+  const forbidden = await requireOwnerOrForbidden();
+  if (forbidden) return forbidden;
+
   return Response.json(await getDatabases());
 }
 

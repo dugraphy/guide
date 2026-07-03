@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { getDatabase, getRows } from "@/lib/databases";
-import { getCanEdit } from "@/lib/auth";
+import { getCanEdit, getSessionUser } from "@/lib/auth";
 import DatabaseView from "./DatabaseView";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,11 @@ export default async function DbPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const { role } = await getSessionUser();
+  if (role !== "owner") {
+    redirect("/");
+  }
+
   const { slug } = await params;
   const { status, 업종, highlight } = await searchParams;
 
