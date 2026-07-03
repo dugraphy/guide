@@ -22,7 +22,7 @@
   margin-top: 20px;
 }
 .bn-block [data-background-color=gray] {
-  background-color: transparent !important;
+  background-color: #fff !important;
 }
 .bn-block:has(>.bn-block-content[data-background-color=gray]) {
   background-color: transparent !important;
