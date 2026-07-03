@@ -482,10 +482,12 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
         bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].startsWith("•")
           ? bodyLines.pop()!
           : null;
-      bodyLines.forEach((line) => {
+      bodyLines.forEach((line, i) => {
         if (line.startsWith("•")) {
           pushRun(line.replace(/^•\s*/, " •"), false, true, NOTES_BULLET_FONT_SIZE);
         } else {
+          // 소제목 — 첫 번째가 아니면 이전 섹션과 구분되도록 빈 줄을 먼저 넣는다.
+          if (i > 0) pushRun("", false);
           pushRun(line, true);
         }
       });
