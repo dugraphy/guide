@@ -30,9 +30,12 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [passwordCache, setPasswordCache] = useState<Record<string, string>>({});
+  // 값이 null이면 "조회는 됐지만 account_secrets에 기록이 없음"(이 기능 도입
+  // 이전부터 있던 계정)을 의미하고, key 자체가 없으면 "아직 조회 안 함"이다.
+  const [passwordCache, setPasswordCache] = useState<Record<string, string | null>>({});
   const [visiblePasswordIds, setVisiblePasswordIds] = useState<Set<string>>(new Set());
   const [loadingPasswordId, setLoadingPasswordId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const [newPassword, setNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
@@ -116,6 +119,31 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
       }
       setPasswordCache((prev) => ({ ...prev, [id]: data.password }));
     }
+    setVisiblePasswordIds((prev) => new Set(prev).add(id));
+  };
+
+  const handleResetPassword = async (id: string) => {
+    if (
+      !confirm(
+        "이 계정의 비밀번호를 새로 발급하시겠습니까?\n기존 비밀번호는 더 이상 사용할 수 없게 됩니다."
+      )
+    )
+      return;
+    const newPassword = generateTempPassword();
+    setResettingId(id);
+    setError("");
+    const res = await fetch(`/api/admin/users/${id}/password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setResettingId(null);
+    if (!res.ok) {
+      setError(data.error ?? "비밀번호 재설정에 실패했습니다.");
+      return;
+    }
+    setPasswordCache((prev) => ({ ...prev, [id]: newPassword }));
     setVisiblePasswordIds((prev) => new Set(prev).add(id));
   };
 
@@ -261,28 +289,45 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
                     </select>
                   </td>
                   <td className="py-2">
-                    <div className="flex items-center gap-1.5">
-                      <code className="text-xs text-[var(--fg)]">
-                        {visiblePasswordIds.has(account.id)
-                          ? passwordCache[account.id]
-                          : "••••••"}
-                      </code>
-                      <button
-                        type="button"
-                        onClick={() => handleTogglePassword(account.id)}
-                        disabled={loadingPasswordId === account.id}
-                        className="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors disabled:opacity-50"
-                        aria-label={
-                          visiblePasswordIds.has(account.id) ? "비밀번호 숨기기" : "비밀번호 보기"
-                        }
-                      >
-                        {visiblePasswordIds.has(account.id) ? (
-                          <EyeOff size={14} />
-                        ) : (
-                          <Eye size={14} />
-                        )}
-                      </button>
-                    </div>
+                    {visiblePasswordIds.has(account.id) && passwordCache[account.id] === null ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[var(--fg-muted)]">
+                          저장된 비밀번호 정보가 없습니다 (이 계정 생성 이후 추가된 기능이라
+                          이전 계정은 기록이 없을 수 있음)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(account.id)}
+                          disabled={resettingId === account.id}
+                          className="text-xs text-[var(--accent)] hover:underline disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {resettingId === account.id ? "재설정 중..." : "비밀번호 재설정"}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <code className="text-xs text-[var(--fg)]">
+                          {visiblePasswordIds.has(account.id)
+                            ? passwordCache[account.id]
+                            : "••••••"}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePassword(account.id)}
+                          disabled={loadingPasswordId === account.id}
+                          className="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors disabled:opacity-50"
+                          aria-label={
+                            visiblePasswordIds.has(account.id) ? "비밀번호 숨기기" : "비밀번호 보기"
+                          }
+                        >
+                          {visiblePasswordIds.has(account.id) ? (
+                            <EyeOff size={14} />
+                          ) : (
+                            <Eye size={14} />
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="py-2 text-[var(--fg-muted)]">
                     {new Date(account.createdAt).toLocaleDateString("ko-KR")}
