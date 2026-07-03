@@ -28,7 +28,12 @@ const schema = BlockNoteSchema.create({
 function parseInitialContent(body: string) {
   try {
     const parsed = JSON.parse(body);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    // 유효한 BlockNote JSON 배열이면 빈 배열([])이어도 여기서 바로 반환한다.
+    // 그렇지 않으면 아래 "일반 텍스트로 취급" 분기로 넘어가 body 문자열
+    // "[]"가 그대로 문단 텍스트로 표시되는 버그가 있었다.
+    if (Array.isArray(parsed)) {
+      return parsed.length > 0 ? parsed : undefined;
+    }
   } catch {
     // not BlockNote JSON
   }
