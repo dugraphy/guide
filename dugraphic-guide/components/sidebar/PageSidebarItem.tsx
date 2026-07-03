@@ -20,7 +20,7 @@ export default function PageSidebarItem({ slug, href, label, canEdit }: Props) {
   const handleDelete = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`"${label}" 페이지를 삭제할까요?`)) return;
+    if (!window.confirm(`"${label}" 페이지를 삭제하시겠습니까?\n삭제하면 복구할 수 없습니다.`)) return;
     setDeleting(true);
     try {
       await fetch(`/api/pages/${slug}`, { method: "DELETE" });
