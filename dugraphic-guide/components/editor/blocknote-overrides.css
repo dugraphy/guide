@@ -23,7 +23,7 @@
 }
 
 .bn-block:has(>.bn-block-content[data-background-color=gray]) {
-  background-color: transparent;
+  background-color: transparent !important;
 }
 
 
