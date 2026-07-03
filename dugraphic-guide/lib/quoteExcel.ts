@@ -79,7 +79,7 @@ function styleLabelCell(cell: ExcelJS.Cell, size = 11) {
 
 function styleValueCell(cell: ExcelJS.Cell, size = 11) {
   cell.font = { name: FONT_NAME, size };
-  cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
   cell.border = THIN_BORDER;
 }
 
@@ -108,9 +108,9 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     { width: 34 },
     { width: 13 },
     { width: 13 },
-    { width: 10 },
-    { width: 16 },
-    { width: 20 },
+    { width: 9.5 },
+    { width: 24 },
+    { width: 13 },
   ];
 
   // ── 1. 상단: 좌측 큰 제목 + 우측 사업자정보 표 (6행에 걸쳐 나란히) ──
@@ -136,12 +136,12 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const titleCell = sheet.getCell(titleStartRow, 1);
   titleCell.value = "견적서";
   titleCell.font = { name: FONT_NAME, bold: true, size: 26 };
-  titleCell.alignment = { horizontal: "left", vertical: "middle" };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
   sheet.addRow([]);
 
-  // ── 2. 중단: 의뢰인명/견적일자 표 + 안내 문구 ──
-  const clientRow = sheet.addRow(["의뢰인명", "", clientName, "", "견적일자", quoteDate, ""]);
+  // ── 2. 중단: 업체명/견적일자 표 + 안내 문구 ──
+  const clientRow = sheet.addRow(["업체명", "", clientName, "", "견적일자", quoteDate, ""]);
   sheet.mergeCells(clientRow.number, 1, clientRow.number, 2);
   sheet.mergeCells(clientRow.number, 3, clientRow.number, 4);
   sheet.mergeCells(clientRow.number, 6, clientRow.number, 7);
@@ -154,7 +154,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const noticeRow = sheet.addRow(["아래와 같이 견적합니다."]);
   sheet.mergeCells(noticeRow.number, 1, noticeRow.number, 7);
   noticeRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 12 };
-  noticeRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+  noticeRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
 
   sheet.addRow([]);
 
@@ -188,8 +188,9 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       cell.border = THIN_BORDER;
       cell.font = { name: FONT_NAME, size: 11 };
       cell.alignment = {
-        horizontal: c === 2 || c === 7 ? "left" : "right",
+        horizontal: c === 2 || c === 7 ? "center" : "right",
         vertical: "middle",
+        wrapText: c === 2 || c === 7,
       };
       if (i % 2 === 1) cell.fill = ZEBRA_FILL;
     }
@@ -212,7 +213,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     value3: number
   ) {
     const row = sheet.addRow(["", "", "", "", "", "", ""]);
-    row.height = 22;
+    row.height = 26;
     sheet.mergeCells(row.number, 1, row.number, 2);
     row.getCell(1).value = label1;
     row.getCell(3).value = value1;
@@ -221,11 +222,11 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     row.getCell(6).value = label3;
     row.getCell(7).value = value3;
     styleLabelCell(row.getCell(1), 10);
-    styleValueCell(row.getCell(3));
+    styleValueCell(row.getCell(3), 13);
     styleLabelCell(row.getCell(4), 10);
-    styleValueCell(row.getCell(5));
+    styleValueCell(row.getCell(5), 13);
     styleLabelCell(row.getCell(6), 10);
-    styleValueCell(row.getCell(7));
+    styleValueCell(row.getCell(7), 13);
     [3, 5, 7].forEach((c) => {
       row.getCell(c).numFmt = MONEY_FORMAT;
       row.getCell(c).alignment = { horizontal: "right", vertical: "middle" };
@@ -282,7 +283,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   grandRow.getCell(3).value = totals.totalBilled;
   [1, 3].forEach((c) => {
     const cell = grandRow.getCell(c);
-    cell.font = { name: FONT_NAME, bold: true, size: 13 };
+    cell.font = { name: FONT_NAME, bold: true, size: 12 };
     cell.fill = HIGHLIGHT_FILL;
     cell.border = THIN_BORDER;
     cell.alignment = { horizontal: c === 1 ? "center" : "right", vertical: "middle" };
@@ -294,6 +295,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   ]);
   sheet.mergeCells(footnoteRow.number, 1, footnoteRow.number, 7);
   footnoteRow.getCell(1).font = { name: FONT_NAME, italic: true, size: 10, color: { argb: "FF666666" } };
+  footnoteRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
 
   sheet.addRow([]);
 
@@ -301,19 +303,23 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const noticeHeaderRow = sheet.addRow(["안내사항"]);
   sheet.mergeCells(noticeHeaderRow.number, 1, noticeHeaderRow.number, 7);
   noticeHeaderRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
-  noticeHeaderRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+  noticeHeaderRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
 
-  notes
+  const noteLines = notes
     .split("\n")
-    .filter((line) => line.trim().length > 0)
-    .forEach((line, i) => {
-      const row = sheet.addRow([`${i + 1}. ${line}`]);
-      sheet.mergeCells(row.number, 1, row.number, 7);
-      const cell = row.getCell(1);
-      cell.font = { name: FONT_NAME, size: 11 };
-      cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
-      row.height = 20;
-    });
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  // notes 원본에 이미 "1. " 같은 번호가 붙어 있으면 중복으로 번호를 매기지 않는다.
+  const alreadyNumbered = noteLines.length > 0 && /^\d+[.)]\s*/.test(noteLines[0]);
+  noteLines.forEach((line, i) => {
+    const text = alreadyNumbered ? line : `${i + 1}. ${line}`;
+    const row = sheet.addRow([text]);
+    sheet.mergeCells(row.number, 1, row.number, 7);
+    const cell = row.getCell(1);
+    cell.font = { name: FONT_NAME, size: 11 };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    row.height = 20;
+  });
 
   return workbook;
 }

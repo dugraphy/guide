@@ -11,19 +11,19 @@ import { TABLE } from "@/components/table/tableStyles";
 
 type VatMode = "exclusive" | "inclusive";
 
+// 부가세 포함/별도 안내는 엑셀 하단의 "* 부가세(10%)가 포함된 금액입니다" 각주가
+// vatIncluded 값에 따라 자동으로 표시하므로, 여기 기본 안내사항에는 넣지 않는다.
 const DEFAULT_NOTES: Record<QuoteType, string> = {
   리뉴얼:
     "1. 본 견적은 기존 서비스의 유지보수 및 디자인 개편을 기준으로 작성되었습니다.\n" +
     "2. 견적 유효기간은 발행일로부터 14일입니다.\n" +
     "3. 계약금 입금 확인 후 작업이 시작되며, 잔금은 작업 완료 후 지급합니다.\n" +
-    "4. 상기 금액은 부가세 별도입니다.\n" +
-    "5. 진행 중 추가 요청사항이 발생할 경우 별도 협의 후 견적이 변경될 수 있습니다.",
+    "4. 진행 중 추가 요청사항이 발생할 경우 별도 협의 후 견적이 변경될 수 있습니다.",
   신규:
     "1. 본 견적은 신규 프로젝트 제작을 기준으로 작성되었습니다.\n" +
     "2. 견적 유효기간은 발행일로부터 14일입니다.\n" +
     "3. 계약금 입금 확인 후 작업이 시작되며, 잔금은 작업 완료 후 지급합니다.\n" +
-    "4. 상기 금액은 부가세 별도입니다.\n" +
-    "5. 프로젝트 범위(페이지 수, 기능 등)는 상호 협의된 내용을 기준으로 하며, 범위 변경 시 견적이 조정될 수 있습니다.",
+    "4. 프로젝트 범위(페이지 수, 기능 등)는 상호 협의된 내용을 기준으로 하며, 범위 변경 시 견적이 조정될 수 있습니다.",
 };
 
 function emptyItem(): QuoteItem {
@@ -82,7 +82,7 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
   const handleDownload = async () => {
     if (!quoteType) return;
     if (!clientName.trim()) {
-      alert("의뢰인명을 입력해주세요.");
+      alert("업체명을 입력해주세요.");
       return;
     }
     setDownloading(true);
@@ -180,11 +180,11 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
         <h2 className="text-sm font-semibold text-[var(--fg)] mb-3">견적 정보</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--fg-muted)] mb-1">의뢰인명</label>
+            <label className="block text-xs font-medium text-[var(--fg-muted)] mb-1">업체명</label>
             <input
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
-              placeholder="의뢰인명을 입력하세요"
+              placeholder="업체명을 입력하세요"
               className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
             />
           </div>
