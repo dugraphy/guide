@@ -449,6 +449,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     // 셀의 행 높이를 내용에 맞춰 자동 조정해주지 않으므로 예상 줄바꿈 수를
     // 직접 계산해서 그만큼 행을 병합해 높이를 확보한다.
     const NOTES_FONT_SIZE = 11;
+    const NOTES_BULLET_FONT_SIZE = 10;
     const AVG_CHAR_PX = 13; // 한글 위주 혼합 텍스트의 11pt 기준 글자당 대략적인 폭
     const NOTES_LINE_HEIGHT_PT = 15;
     const NOTES_ROW_HEIGHT_PT = 20; // 병합에 쓸 개별 행 높이(문서의 다른 본문 행과 동일)
@@ -462,19 +463,20 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
 
     const richTextRuns: ExcelJS.RichText[] = [];
     let totalWrappedLines = 0;
-    const pushRun = (text: string, bold: boolean, withNewline = true) => {
+    const pushRun = (text: string, bold: boolean, withNewline = true, size = NOTES_FONT_SIZE) => {
       richTextRuns.push({
         text: withNewline ? `${text}\n` : text,
-        font: { name: FONT_NAME, size: NOTES_FONT_SIZE, bold },
+        font: { name: FONT_NAME, size, bold },
       });
       totalWrappedLines += wrappedLineCount(text);
     };
 
     const hasBullets = noteLines.some((line) => line.startsWith("•"));
     if (hasBullets) {
-      // 소제목(불릿 없는 줄)은 굵게, 그 아래 "•" 항목은 들여쓴 일반 글씨로 표시.
-      // 마지막 줄이 불릿이 아니면 별도 문단(예: 계약 확인 문구)으로 보고
-      // 빈 줄을 하나 넣어 분리한다.
+      // 소제목(불릿 없는 줄)은 굵게 기본 크기로, 그 아래 "•" 항목은 "• " 한 칸
+      // 띄어쓰기만 남긴 일반 글씨(더 작은 크기)로 구분한다. 마지막 줄이
+      // 불릿이 아니면 별도 문단(예: 계약 확인 문구)으로 보고 빈 줄을 하나
+      // 넣어 분리한다.
       const bodyLines = [...noteLines];
       const closingLine =
         bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].startsWith("•")
@@ -482,7 +484,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
           : null;
       bodyLines.forEach((line) => {
         if (line.startsWith("•")) {
-          pushRun(`    ${line.replace(/^•\s*/, "• ")}`, false);
+          pushRun(line.replace(/^•\s*/, "• "), false, true, NOTES_BULLET_FONT_SIZE);
         } else {
           pushRun(line, true);
         }
