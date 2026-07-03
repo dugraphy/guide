@@ -3,7 +3,8 @@
 -- section, adds RLS (read for everyone, write for owner only — same pattern
 -- as rls-hardening.sql, reusing its public.is_owner() helper), and seeds the
 -- 7 default templates. Safe to re-run: the seed insert is keyed on the
--- unique `name` column.
+-- unique `name` column and upserts, so re-running after editing a template's
+-- blocks below re-syncs the existing row instead of being skipped.
 --
 -- Depends on public.is_owner() — run rls-hardening.sql first if you haven't.
 
@@ -45,17 +46,19 @@ create policy "Owners can delete templates"
 -- Each `todo` block's `dueDate` prop is an ISO "YYYY-MM-DD" string (empty =
 -- no date). Left blank here on purpose — it's designed to be filled in per
 -- item later and reused by future percentage-complete / calendar features.
+--
+-- No leading heading block on purpose: the slash menu item already shows the
+-- template name, so repeating it as the first line of the inserted content
+-- would be redundant.
 insert into public.templates (name, icon, sort_order, blocks) values
 
 ('업무 목록', '✅', 1, $tpl1$[
-  {"type":"heading","props":{"level":1},"content":"업무 목록"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"담당자: 홍길동 — 업무 내용을 입력하세요"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"담당자: 김철수 — 업무 내용을 입력하세요"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"담당자: 이영희 — 업무 내용을 입력하세요"}
 ]$tpl1$::jsonb),
 
 ('주간업무', '📅', 2, $tpl2$[
-  {"type":"heading","props":{"level":1},"content":"주간업무"},
   {"type":"heading","props":{"level":2},"content":"월요일"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"업무 내용을 입력하세요"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"업무 내용을 입력하세요"},
@@ -80,7 +83,6 @@ insert into public.templates (name, icon, sort_order, blocks) values
 ]$tpl2$::jsonb),
 
 ('월간업무', '🗓️', 3, $tpl3$[
-  {"type":"heading","props":{"level":1},"content":"월간업무"},
   {"type":"heading","props":{"level":2},"content":"1주차"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"업무 내용을 입력하세요"},
   {"type":"todo","props":{"checked":false,"dueDate":""},"content":"업무 내용을 입력하세요"},
@@ -99,7 +101,6 @@ insert into public.templates (name, icon, sort_order, blocks) values
 ]$tpl3$::jsonb),
 
 ('실수리스트', '⚠️', 4, $tpl4$[
-  {"type":"heading","props":{"level":1},"content":"실수리스트"},
   {"type":"table","content":{"type":"tableContent","rows":[
     {"cells":["발생일","내용","원인","담당자"]},
     {"cells":["","","",""]},
@@ -108,7 +109,6 @@ insert into public.templates (name, icon, sort_order, blocks) values
 ]$tpl4$::jsonb),
 
 ('재발방지', '🛡️', 5, $tpl5$[
-  {"type":"heading","props":{"level":1},"content":"재발방지"},
   {"type":"table","content":{"type":"tableContent","rows":[
     {"cells":["원인","대책","적용일","확인여부"]},
     {"cells":["","","",""]},
@@ -117,7 +117,6 @@ insert into public.templates (name, icon, sort_order, blocks) values
 ]$tpl5$::jsonb),
 
 ('가격정책', '💰', 6, $tpl6$[
-  {"type":"heading","props":{"level":1},"content":"가격정책"},
   {"type":"table","content":{"type":"tableContent","rows":[
     {"cells":["항목","단가","조건","비고"]},
     {"cells":["","","",""]},
@@ -126,7 +125,6 @@ insert into public.templates (name, icon, sort_order, blocks) values
 ]$tpl6$::jsonb),
 
 ('환불정책', '📋', 7, $tpl7$[
-  {"type":"heading","props":{"level":1},"content":"환불정책"},
   {"type":"heading","props":{"level":3},"content":"제1조 (목적)"},
   {"type":"paragraph","content":"이 환불정책은 서비스 이용에 대한 환불 기준과 절차를 정합니다."},
   {"type":"heading","props":{"level":3},"content":"제2조 (환불 기준)"},
@@ -137,4 +135,7 @@ insert into public.templates (name, icon, sort_order, blocks) values
   {"type":"paragraph","content":"환불이 제한되는 예외 사항을 입력하세요."}
 ]$tpl7$::jsonb)
 
-on conflict (name) do nothing;
+on conflict (name) do update set
+  icon = excluded.icon,
+  sort_order = excluded.sort_order,
+  blocks = excluded.blocks;

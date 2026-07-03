@@ -3,6 +3,7 @@
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
+import "./blocknote-overrides.css";
 import { useRef, useCallback, useEffect, useState } from "react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import type { BlockNoteEditor } from "@blocknote/core";

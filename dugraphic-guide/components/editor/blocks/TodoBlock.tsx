@@ -28,7 +28,7 @@ function TodoRenderer({
   };
 
   return (
-    <div className="flex items-start gap-2 w-full">
+    <div className="flex items-start gap-2 w-full rounded-md px-1.5 py-0.5 -mx-1.5 transition-colors hover:bg-[var(--hover)]">
       <div contentEditable={false} className="shrink-0 flex items-center h-6">
         <input
           type="checkbox"
@@ -51,7 +51,7 @@ function TodoRenderer({
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             onKeyDown={(e) => e.stopPropagation()}
-            className="text-xs bg-transparent border border-[var(--border)] rounded px-1.5 py-0.5 text-[var(--fg-muted)] outline-none"
+            className="text-xs bg-[var(--bg-secondary)] border border-[var(--border)] rounded-md px-2 py-1 text-[var(--fg-muted)] outline-none focus:border-[var(--accent)] transition-colors"
           />
         ) : (
           dueDate && (

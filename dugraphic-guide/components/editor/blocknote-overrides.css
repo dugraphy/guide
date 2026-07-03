@@ -1,0 +1,46 @@
+/*
+ * Overrides for @blocknote/mantine's default block styling — kept to the
+ * app's existing palette (see app/globals.css: --bg-secondary, --border,
+ * --accent, --hover). Loaded after @blocknote/mantine/style.css so equal-
+ * specificity selectors win without needing !important.
+ */
+
+/* 요일/주차 섹션 제목(주간·월간업무 템플릿의 heading level 2) — 뱃지 스타일 */
+.bn-editor [data-content-type="heading"][data-level="2"] {
+  display: inline-block;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 12px;
+}
+
+/* 조항 제목(환불정책 템플릿의 heading level 3) — 왼쪽 컬러 바 + 넉넉한 간격 */
+.bn-editor [data-content-type="heading"][data-level="3"] {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  margin-top: 20px;
+}
+
+/* 표: 헤더 행 배경, 짝수 행 zebra striping, 넉넉한 padding, 둥근 모서리 */
+.bn-editor [data-content-type="table"] table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bn-editor [data-content-type="table"] th,
+.bn-editor [data-content-type="table"] td {
+  border-color: var(--border);
+  padding: 8px 14px;
+}
+
+.bn-editor [data-content-type="table"] tr:first-child th,
+.bn-editor [data-content-type="table"] tr:first-child td {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+.bn-editor [data-content-type="table"] tr:nth-child(even) td {
+  background: rgba(55, 53, 47, 0.025);
+}
