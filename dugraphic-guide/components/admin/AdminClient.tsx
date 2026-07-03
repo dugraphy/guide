@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import type { AccountRow } from "@/lib/admin-users";
 
 interface Props {
@@ -28,6 +29,10 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
 
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const [passwordCache, setPasswordCache] = useState<Record<string, string>>({});
+  const [visiblePasswordIds, setVisiblePasswordIds] = useState<Set<string>>(new Set());
+  const [loadingPasswordId, setLoadingPasswordId] = useState<string | null>(null);
 
   const [newPassword, setNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
@@ -89,6 +94,29 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
     if (!res.ok) setError(data.error ?? "삭제에 실패했습니다.");
     router.refresh();
     setBusyId(null);
+  };
+
+  const handleTogglePassword = async (id: string) => {
+    if (visiblePasswordIds.has(id)) {
+      setVisiblePasswordIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+    if (!(id in passwordCache)) {
+      setLoadingPasswordId(id);
+      const res = await fetch(`/api/admin/users/${id}/password`);
+      const data = await res.json().catch(() => ({}));
+      setLoadingPasswordId(null);
+      if (!res.ok) {
+        setError(data.error ?? "비밀번호 조회에 실패했습니다.");
+        return;
+      }
+      setPasswordCache((prev) => ({ ...prev, [id]: data.password }));
+    }
+    setVisiblePasswordIds((prev) => new Set(prev).add(id));
   };
 
   const handleChangeMyPassword = async (e: React.FormEvent) => {
@@ -210,6 +238,7 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
             <tr className="text-left text-xs text-[var(--fg-muted)] border-b border-[var(--border)]">
               <th className="py-2 font-medium">이메일</th>
               <th className="py-2 font-medium">권한</th>
+              <th className="py-2 font-medium">비밀번호</th>
               <th className="py-2 font-medium">가입일</th>
               <th className="py-2 font-medium"></th>
             </tr>
@@ -230,6 +259,30 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
                       <option value="member">member</option>
                       <option value="owner">owner</option>
                     </select>
+                  </td>
+                  <td className="py-2">
+                    <div className="flex items-center gap-1.5">
+                      <code className="text-xs text-[var(--fg)]">
+                        {visiblePasswordIds.has(account.id)
+                          ? passwordCache[account.id]
+                          : "••••••"}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePassword(account.id)}
+                        disabled={loadingPasswordId === account.id}
+                        className="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors disabled:opacity-50"
+                        aria-label={
+                          visiblePasswordIds.has(account.id) ? "비밀번호 숨기기" : "비밀번호 보기"
+                        }
+                      >
+                        {visiblePasswordIds.has(account.id) ? (
+                          <EyeOff size={14} />
+                        ) : (
+                          <Eye size={14} />
+                        )}
+                      </button>
+                    </div>
                   </td>
                   <td className="py-2 text-[var(--fg-muted)]">
                     {new Date(account.createdAt).toLocaleDateString("ko-KR")}
