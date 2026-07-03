@@ -3,6 +3,6 @@
   "title": "제목 없음",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"9fdda726-297f-4741-957d-c89570171935\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"14fdffb2-6566-4fca-9bf6-d9cb0cfb7bfd\",\"type\":\"todo\",\"props\":{\"checked\":false,\"dueDate\":\"\"},\"content\":[],\"children\":[]}]",
+  "body": "[{\"id\":\"9fdda726-297f-4741-957d-c89570171935\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"14fdffb2-6566-4fca-9bf6-d9cb0cfb7bfd\",\"type\":\"todo\",\"props\":{\"checked\":false,\"dueDate\":\"\"},\"content\":[],\"children\":[]},{\"id\":\"a6b15dac-adaa-417f-8cae-6fa4c54ec6b0\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
   "sortOrder": 4
 }
