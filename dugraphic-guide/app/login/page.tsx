@@ -92,6 +92,9 @@ export default function LoginPage() {
             {loading ? "로그인 중..." : "로그인"}
           </button>
         </form>
+        <p className="mt-4 text-xs text-[var(--fg-muted)] text-center">
+          비밀번호를 잊으셨나요? 관리자에게 요청해주세요.
+        </p>
       </div>
     </div>
   );
