@@ -129,3 +129,9 @@ export async function updateQuote(id: string, quote: NewQuote): Promise<QuoteRow
   if (error) throw new Error(`updateQuote(${id}): ${error.message}`);
   return rowToQuote(data);
 }
+
+export async function deleteQuote(id: string): Promise<void> {
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin.from("quotes").delete().eq("id", id);
+  if (error) throw new Error(`deleteQuote(${id}): ${error.message}`);
+}

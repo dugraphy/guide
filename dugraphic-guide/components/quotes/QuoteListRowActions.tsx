@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { QuoteRow } from "@/lib/quotes";
 import type { BusinessProfile } from "@/lib/businessProfile";
@@ -12,7 +13,9 @@ interface Props {
 }
 
 export default function QuoteListRowActions({ quote, businessProfile }: Props) {
+  const router = useRouter();
   const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -32,6 +35,20 @@ export default function QuoteListRowActions({ quote, businessProfile }: Props) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm("정말 삭제하시겠습니까?")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/quotes/${quote.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("삭제에 실패했습니다.");
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "삭제에 실패했습니다.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-end gap-3">
       <button
@@ -47,6 +64,13 @@ export default function QuoteListRowActions({ quote, businessProfile }: Props) {
       >
         수정
       </Link>
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        className="text-xs text-red-500 hover:underline disabled:opacity-50"
+      >
+        {deleting ? "삭제 중..." : "삭제"}
+      </button>
     </div>
   );
 }

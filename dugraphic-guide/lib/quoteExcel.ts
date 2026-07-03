@@ -105,10 +105,10 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const sheet = workbook.addWorksheet("견적서");
   sheet.columns = [
     { width: 8 },
-    { width: 34 },
+    { width: 30 },
     { width: 13 },
     { width: 13 },
-    { width: 9.5 },
+    { width: 18 },
     { width: 24 },
     { width: 13 },
   ];
@@ -290,13 +290,6 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   });
   grandRow.getCell(3).numFmt = MONEY_FORMAT;
 
-  const footnoteRow = sheet.addRow([
-    vatIncluded ? "* 부가세(10%)가 포함된 금액입니다." : "* 상기 금액은 부가세 별도입니다.",
-  ]);
-  sheet.mergeCells(footnoteRow.number, 1, footnoteRow.number, 7);
-  footnoteRow.getCell(1).font = { name: FONT_NAME, italic: true, size: 10, color: { argb: "FF666666" } };
-  footnoteRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-
   sheet.addRow([]);
 
   // ── 5. 안내사항 ──
@@ -317,7 +310,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     sheet.mergeCells(row.number, 1, row.number, 7);
     const cell = row.getCell(1);
     cell.font = { name: FONT_NAME, size: 11 };
-    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     row.height = 20;
   });
 

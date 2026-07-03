@@ -52,7 +52,7 @@ export default async function QuotesPage() {
                   <th className="text-right px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]">
                     총 청구액
                   </th>
-                  <th className="w-32 px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
+                  <th className="w-44 px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
                 </tr>
               </thead>
               <tbody>
