@@ -190,11 +190,11 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     Math.max(0, Math.round(titleAreaWidthPx / 2 - LOGO_VISUAL_CENTER_FRACTION * LOGO_WATERMARK_WIDTH))
   );
   // 위 보정이 상한(maxLogoOffsetPx)에 걸려 과하게 오른쪽으로 붙었으므로,
-  // 정중앙(naive 50:50 지점)과의 차이 중 약 1/5만큼만 다시 왼쪽으로 미세 조정한다.
+  // 정중앙(naive 50:50 지점)과의 차이의 1/5을 미세 조정 한 칸(step)으로 두고
+  // 왼쪽으로 두 칸(step) 당긴다 — 1차 조정 후 사용자 요청으로 같은 폭만큼 한 번 더.
   const naiveCenterOffsetPx = Math.max(0, Math.round((titleAreaWidthPx - LOGO_WATERMARK_WIDTH) / 2));
-  let logoOffsetPx = Math.round(
-    biasedOffsetPx - (biasedOffsetPx - naiveCenterOffsetPx) / 5
-  );
+  const fineTuneStepPx = Math.round((biasedOffsetPx - naiveCenterOffsetPx) / 5);
+  let logoOffsetPx = biasedOffsetPx - fineTuneStepPx * 2;
   let logoCol = 0;
   for (const w of titleColWidthsPx) {
     if (logoOffsetPx < w) break;
