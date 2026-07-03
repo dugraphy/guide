@@ -305,7 +305,17 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
               const isSelf = account.id === currentUserId;
               return (
                 <tr key={account.id} className="border-b border-[var(--border)]">
-                  <td className="py-2 text-[var(--fg)]">{account.email}</td>
+                  <td className="py-2 text-[var(--fg)]">
+                    {account.email}
+                    {!account.hasEmailIdentity && (
+                      <span
+                        className="ml-1.5 text-[10px] px-1 py-0.5 rounded border border-[var(--border)] text-[var(--fg-muted)] align-middle"
+                        title="이메일/비밀번호가 아닌 다른 로그인 방식(예: Google)으로 가입된 계정입니다. 비밀번호를 강제로 바꿔도 로그인이 되지 않을 수 있습니다."
+                      >
+                        OAuth 전용
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2">
                     <select
                       value={account.role ?? "member"}
@@ -392,7 +402,12 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
                   <td className="py-2 text-right whitespace-nowrap">
                     <button
                       onClick={() => handleOpenPasswordEdit(account.id)}
-                      disabled={editingPasswordId === account.id}
+                      disabled={editingPasswordId === account.id || !account.hasEmailIdentity}
+                      title={
+                        account.hasEmailIdentity
+                          ? undefined
+                          : "OAuth 전용 계정은 비밀번호를 강제로 바꿔도 로그인이 되지 않을 수 있어 비활성화되어 있습니다."
+                      }
                       className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors disabled:opacity-30 mr-3"
                     >
                       비밀번호 변경

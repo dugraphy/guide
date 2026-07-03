@@ -6,6 +6,10 @@ export interface AccountRow {
   email: string;
   role: UserRole;
   createdAt: string;
+  // "email" provider identity가 없으면(예: Google OAuth로만 가입) 비밀번호를
+  // 강제로 바꿔도 로그인이 계속 실패할 수 있다는 게 Supabase Auth의 알려진
+  // 동작이라, 관리자 화면에서 비밀번호 변경 대상에서 제외하는 데 쓴다.
+  hasEmailIdentity: boolean;
 }
 
 // account_secrets에 평문 비밀번호를 기록/갱신한다. 계정 생성, 관리자 강제
@@ -38,6 +42,7 @@ export async function getAccounts(): Promise<AccountRow[]> {
       email: u.email ?? "",
       role: roleById.get(u.id) ?? "member",
       createdAt: u.created_at,
+      hasEmailIdentity: (u.identities ?? []).some((identity) => identity.provider === "email"),
     }))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
