@@ -491,7 +491,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       });
       if (closingLine) {
         pushRun("", false);
-        pushRun(closingLine, false, false);
+        pushRun(closingLine, false, false, 9);
       }
     } else {
       // notes 원본에 이미 "1. " 같은 번호가 붙어 있으면 중복으로 번호를 매기지 않는다.
