@@ -133,6 +133,23 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const { default: ExcelJSRuntime } = await import("exceljs");
   const workbook = new ExcelJSRuntime.Workbook();
   const sheet = workbook.addWorksheet("견적서");
+
+  // 인쇄 시 내용이 잘리지 않고 세로 1페이지에 맞춰 자동 축소되도록 설정.
+  sheet.pageSetup = {
+    orientation: "portrait",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 1,
+    margins: {
+      top: 0.75,
+      bottom: 0.75,
+      left: 0.7,
+      right: 0.7,
+      header: 0.3,
+      footer: 0.3,
+    },
+  };
+
   sheet.columns = [
     { width: 8 },
     { width: 30 },
