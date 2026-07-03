@@ -19,11 +19,13 @@
 -- Depends on public.is_owner() — run rls-hardening.sql first if you haven't.
 
 drop policy if exists "Databases are viewable by everyone" on public.databases;
+drop policy if exists "Only owners can view databases" on public.databases;
 create policy "Only owners can view databases"
   on public.databases for select
   using (public.is_owner());
 
 drop policy if exists "Database rows are viewable by everyone" on public.database_rows;
+drop policy if exists "Only owners can view database rows" on public.database_rows;
 create policy "Only owners can view database rows"
   on public.database_rows for select
   using (public.is_owner());
