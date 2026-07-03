@@ -10,6 +10,8 @@ import type { BlockNoteEditor } from "@blocknote/core";
 import type { PageData } from "@/lib/data";
 import { pageLinkSpec } from "./blocks/PageLinkBlock";
 import { todoSpec } from "./blocks/TodoBlock";
+import { pricingCardsSpec } from "./blocks/PricingCardsBlock";
+import { calloutBoxSpec } from "./blocks/CalloutBoxBlock";
 import type { TemplateRow } from "@/lib/templates";
 
 // Custom schema — defined at module level so the reference stays stable across renders
@@ -18,6 +20,8 @@ const schema = BlockNoteSchema.create({
     ...defaultBlockSpecs,
     pageLink: pageLinkSpec,
     todo: todoSpec,
+    pricingCards: pricingCardsSpec,
+    calloutBox: calloutBoxSpec,
   },
 });
 

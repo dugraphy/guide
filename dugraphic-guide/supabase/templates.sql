@@ -116,13 +116,7 @@ insert into public.templates (name, icon, sort_order, blocks) values
   ]}}
 ]$tpl5$::jsonb),
 
-('가격정책', '💰', 6, $tpl6$[
-  {"type":"table","content":{"type":"tableContent","rows":[
-    {"cells":["항목","단가","조건","비고"]},
-    {"cells":["","","",""]},
-    {"cells":["","","",""]}
-  ]}}
-]$tpl6$::jsonb),
+('가격정책', '💰', 6, $tpl6$[{"type":"pricingCards","props":{"packages":"[{\"name\":\"베이직\",\"price\":\"가격을 입력하세요\",\"features\":[\"항목을 입력하세요\",\"항목을 입력하세요\",\"항목을 입력하세요\"],\"featured\":false},{\"name\":\"스탠다드\",\"price\":\"가격을 입력하세요\",\"features\":[\"항목을 입력하세요\",\"항목을 입력하세요\",\"항목을 입력하세요\"],\"featured\":true},{\"name\":\"프리미엄\",\"price\":\"가격을 입력하세요\",\"features\":[\"항목을 입력하세요\",\"항목을 입력하세요\",\"항목을 입력하세요\"],\"featured\":false}]"}},{"type":"heading","props":{"level":2},"content":"세부 단가"},{"type":"table","content":{"type":"tableContent","rows":[{"cells":["항목","단가","조건","비고"]},{"cells":["","","",""]},{"cells":["","","",""]}]}},{"type":"heading","props":{"level":2},"content":"보정 계수"},{"type":"calloutBox","props":{"items":"[\"레퍼런스 있음: 기본가 × 1.0\",\"레퍼런스 없음: 기본가 × 1.3~1.5\"]"}}]$tpl6$::jsonb),
 
 ('환불정책', '📋', 7, $tpl7$[
   {"type":"heading","props":{"level":3},"content":"제1조 (목적)"},
