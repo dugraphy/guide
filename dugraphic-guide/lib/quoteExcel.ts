@@ -441,48 +441,79 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  function addNoteLine(text: string, opts: { bold?: boolean; indent?: number } = {}) {
-    const row = sheet.addRow([text]);
-    sheet.mergeCells(row.number, 1, row.number, 7);
-    const cell = row.getCell(1);
-    cell.font = { name: FONT_NAME, size: 11, bold: opts.bold ?? false };
-    cell.alignment = {
-      horizontal: "left",
-      vertical: "middle",
-      wrapText: true,
-      indent: opts.indent ?? 0,
-    };
-    row.height = 20;
-  }
+  if (noteLines.length > 0) {
+    // 안내사항 전체를 하나의 병합된 셀에 richText로 담는다. 소제목은 굵게,
+    // "•" 불릿 항목은 앞에 공백을 붙여 들여쓴 일반 글씨로 구분한다(richText는
+    // 런 단위 서식만 지원해서 셀 alignment.indent 같은 줄 단위 들여쓰기를 쓸
+    // 수 없기 때문). wrapText로 셀 너비에 맞춰 자동 줄바꿈되며, Excel은 병합된
+    // 셀의 행 높이를 내용에 맞춰 자동 조정해주지 않으므로 예상 줄바꿈 수를
+    // 직접 계산해서 그만큼 행을 병합해 높이를 확보한다.
+    const NOTES_FONT_SIZE = 11;
+    const AVG_CHAR_PX = 13; // 한글 위주 혼합 텍스트의 11pt 기준 글자당 대략적인 폭
+    const NOTES_LINE_HEIGHT_PT = 15;
+    const NOTES_ROW_HEIGHT_PT = 20; // 병합에 쓸 개별 행 높이(문서의 다른 본문 행과 동일)
 
-  const hasBullets = noteLines.some((line) => line.startsWith("•"));
-  if (hasBullets) {
-    // 소제목(불릿 없는 줄)은 굵게, 그 아래 "•" 항목은 들여쓴 일반 글씨로 표시.
-    // 마지막 줄이 불릿이 아니면 별도 문단(예: 계약 확인 문구)으로 보고
-    // 위에 여백을 두어 분리한다.
-    const bodyLines = [...noteLines];
-    const closingLine =
-      bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].startsWith("•")
-        ? bodyLines.pop()!
-        : null;
-    bodyLines.forEach((line) => {
-      if (line.startsWith("•")) {
-        addNoteLine(line.replace(/^•\s*/, "• "), { indent: 1 });
-      } else {
-        addNoteLine(line, { bold: true });
+    const noteAreaWidthPx = [1, 2, 3, 4, 5, 6, 7].reduce(
+      (sum, c) => sum + colWidthPx(Number(sheet.getColumn(c).width)),
+      0
+    );
+    const charsPerLine = Math.max(10, Math.floor(noteAreaWidthPx / AVG_CHAR_PX));
+    const wrappedLineCount = (text: string) => Math.max(1, Math.ceil(text.length / charsPerLine));
+
+    const richTextRuns: ExcelJS.RichText[] = [];
+    let totalWrappedLines = 0;
+    const pushRun = (text: string, bold: boolean, withNewline = true) => {
+      richTextRuns.push({
+        text: withNewline ? `${text}\n` : text,
+        font: { name: FONT_NAME, size: NOTES_FONT_SIZE, bold },
+      });
+      totalWrappedLines += wrappedLineCount(text);
+    };
+
+    const hasBullets = noteLines.some((line) => line.startsWith("•"));
+    if (hasBullets) {
+      // 소제목(불릿 없는 줄)은 굵게, 그 아래 "•" 항목은 들여쓴 일반 글씨로 표시.
+      // 마지막 줄이 불릿이 아니면 별도 문단(예: 계약 확인 문구)으로 보고
+      // 빈 줄을 하나 넣어 분리한다.
+      const bodyLines = [...noteLines];
+      const closingLine =
+        bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].startsWith("•")
+          ? bodyLines.pop()!
+          : null;
+      bodyLines.forEach((line) => {
+        if (line.startsWith("•")) {
+          pushRun(`    ${line.replace(/^•\s*/, "• ")}`, false);
+        } else {
+          pushRun(line, true);
+        }
+      });
+      if (closingLine) {
+        pushRun("", false);
+        pushRun(closingLine, false, false);
       }
-    });
-    if (closingLine) {
-      sheet.addRow([]);
-      addNoteLine(closingLine);
+    } else {
+      // notes 원본에 이미 "1. " 같은 번호가 붙어 있으면 중복으로 번호를 매기지 않는다.
+      const alreadyNumbered = noteLines.length > 0 && /^\d+[.)]\s*/.test(noteLines[0]);
+      noteLines.forEach((line, i) => {
+        const text = alreadyNumbered ? line : `${i + 1}. ${line}`;
+        pushRun(text, false, i < noteLines.length - 1);
+      });
     }
-  } else {
-    // notes 원본에 이미 "1. " 같은 번호가 붙어 있으면 중복으로 번호를 매기지 않는다.
-    const alreadyNumbered = noteLines.length > 0 && /^\d+[.)]\s*/.test(noteLines[0]);
-    noteLines.forEach((line, i) => {
-      const text = alreadyNumbered ? line : `${i + 1}. ${line}`;
-      addNoteLine(text);
-    });
+
+    const notesRowCount = Math.max(
+      3,
+      Math.ceil((totalWrappedLines * NOTES_LINE_HEIGHT_PT) / NOTES_ROW_HEIGHT_PT) + 1
+    );
+    const notesStartRow = sheet.rowCount + 1;
+    for (let i = 0; i < notesRowCount; i++) {
+      sheet.addRow([]).height = NOTES_ROW_HEIGHT_PT;
+    }
+    const notesEndRow = sheet.rowCount;
+    sheet.mergeCells(notesStartRow, 1, notesEndRow, 7);
+    const notesCell = sheet.getCell(notesStartRow, 1);
+    notesCell.value = { richText: richTextRuns };
+    notesCell.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+    notesCell.border = THIN_BORDER;
   }
 
   return workbook;
