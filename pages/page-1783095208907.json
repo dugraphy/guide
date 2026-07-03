@@ -1,8 +1,8 @@
 {
   "slug": "page-1783095208907",
-  "icon": "📄",
   "title": "제목 없음",
+  "icon": "📄",
   "description": "",
-  "body": "[]",
+  "body": "[{\"id\":\"7fd2b0a4-6ee5-4208-8b12-2195119ee743\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"/\",\"styles\":{}}],\"children\":[]}]",
   "sortOrder": 4
 }
