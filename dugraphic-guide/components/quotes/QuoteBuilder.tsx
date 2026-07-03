@@ -173,6 +173,12 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
           <div><span className="text-[var(--fg-muted)]">전화번호 </span>{businessProfile.phone || "-"}</div>
           <div className="col-span-2"><span className="text-[var(--fg-muted)]">주소 </span>{businessProfile.address || "-"}</div>
           <div><span className="text-[var(--fg-muted)]">이메일 </span>{businessProfile.email || "-"}</div>
+          <div className="col-span-2">
+            <span className="text-[var(--fg-muted)]">계좌 </span>
+            {businessProfile.bankName || businessProfile.accountNumber || businessProfile.accountHolder
+              ? `${businessProfile.bankName} ${businessProfile.accountNumber} 입금자명: ${businessProfile.accountHolder}`
+              : "-"}
+          </div>
         </div>
       </section>
 

@@ -76,3 +76,12 @@ create policy "Owners can delete quotes"
 -- 화면(/quotes)에서 총 청구액을 정확히 계산하려면 필요하다. Safe to re-run.
 alter table public.quotes
   add column if not exists vat_included boolean not null default false;
+
+-- 계좌 정보: 견적서 엑셀의 계약금 안내에 입금 계좌를 표시하기 위한 필드.
+-- Safe to re-run.
+alter table public.business_profile
+  add column if not exists bank_name text not null default '';
+alter table public.business_profile
+  add column if not exists account_number text not null default '';
+alter table public.business_profile
+  add column if not exists account_holder text not null default '';

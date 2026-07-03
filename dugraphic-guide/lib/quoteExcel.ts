@@ -397,6 +397,22 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     totals.balance
   );
 
+  // 계좌 정보 — 계약금 바로 아래에, 강조 배경(회색) + 굵은 글씨로 표시.
+  // 계좌 정보가 하나도 입력되어 있지 않으면 빈 회색 줄만 남는 걸 피하기 위해
+  // 은행명/계좌번호/예금주 중 하나라도 있을 때만 추가한다.
+  if (businessProfile.bankName || businessProfile.accountNumber || businessProfile.accountHolder) {
+    const accountRow = sheet.addRow([
+      `${businessProfile.bankName} ${businessProfile.accountNumber}  입금자명: ${businessProfile.accountHolder}`,
+    ]);
+    accountRow.height = 22;
+    sheet.mergeCells(accountRow.number, 1, accountRow.number, 7);
+    const cell = accountRow.getCell(1);
+    cell.font = { name: FONT_NAME, bold: true, size: 11 };
+    cell.fill = HIGHLIGHT_FILL;
+    cell.border = THIN_BORDER;
+    cell.alignment = { horizontal: "center", vertical: "middle" };
+  }
+
   const grandRow = sheet.addRow(["", "", "", "", "", "", ""]);
   grandRow.height = 26;
   sheet.mergeCells(grandRow.number, 1, grandRow.number, 2);

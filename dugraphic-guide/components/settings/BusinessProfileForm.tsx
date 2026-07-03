@@ -10,6 +10,9 @@ const FIELDS: { key: keyof BusinessProfile; label: string; placeholder: string }
   { key: "phone", label: "전화번호", placeholder: "010-0000-0000" },
   { key: "address", label: "주소", placeholder: "서울특별시 ..." },
   { key: "email", label: "이메일", placeholder: "example@email.com" },
+  { key: "bankName", label: "은행명", placeholder: "카카오뱅크" },
+  { key: "accountNumber", label: "계좌번호", placeholder: "3333-15-0335184" },
+  { key: "accountHolder", label: "예금주", placeholder: "홍길동" },
 ];
 
 interface Props {

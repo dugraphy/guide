@@ -9,6 +9,9 @@
  *   address         text not null default '',
  *   phone           text not null default '',
  *   email           text not null default '',
+ *   bank_name       text not null default '',
+ *   account_number  text not null default '',
+ *   account_holder  text not null default '',
  *   updated_at      timestamptz not null default now()
  * );
  *
@@ -26,13 +29,18 @@ export interface BusinessProfile {
   address: string;
   phone: string;
   email: string;
+  bankName: string;
+  accountNumber: string;
+  accountHolder: string;
 }
 
 export async function getBusinessProfile(): Promise<BusinessProfile> {
   const supabaseAdmin = createAdminClient();
   const { data, error } = await supabaseAdmin
     .from("business_profile")
-    .select("business_number, company_name, owner_name, address, phone, email")
+    .select(
+      "business_number, company_name, owner_name, address, phone, email, bank_name, account_number, account_holder"
+    )
     .eq("id", true)
     .single();
   if (error) throw new Error(`getBusinessProfile: ${error.message}`);
@@ -43,6 +51,9 @@ export async function getBusinessProfile(): Promise<BusinessProfile> {
     address: data.address,
     phone: data.phone,
     email: data.email,
+    bankName: data.bank_name,
+    accountNumber: data.account_number,
+    accountHolder: data.account_holder,
   };
 }
 
@@ -57,6 +68,9 @@ export async function updateBusinessProfile(profile: BusinessProfile): Promise<v
       address: profile.address,
       phone: profile.phone,
       email: profile.email,
+      bank_name: profile.bankName,
+      account_number: profile.accountNumber,
+      account_holder: profile.accountHolder,
       updated_at: new Date().toISOString(),
     })
     .eq("id", true);
