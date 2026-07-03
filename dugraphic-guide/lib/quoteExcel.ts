@@ -69,6 +69,8 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 };
 const MONEY_FORMAT = '#,##0"원"';
 const QTY_FORMAT = '0"ea"';
+// 엑셀 열 너비(문자 단위) → 픽셀 근사 변환(Calibri 11 기준): px ≈ width*7 + 5
+const colWidthPx = (width: number) => Math.round(width * 7 + 5);
 
 // 워터마크 — 로고를 지정된 크기로 그리되, 캔버스에서 낮은 불투명도(12%)로
 // 합성해 새 PNG를 만든다. ExcelJS의 일반 addImage()는 이미지 자체의 투명도
@@ -167,6 +169,40 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   titleCell.value = `${businessProfile.companyName} 견적서`;
   titleCell.font = { name: FONT_NAME, bold: true, size: 21 };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  // 로고 — 제목 블록(A1:B6, 사업자정보 표 왼쪽 빈 공간) 위쪽, 제목 기준
+  // 가로 가운데에 작게 배치. (기존 위치: ⑨ 계약금 근처에 떠 있던 것을 이동)
+  const LOGO_WATERMARK_WIDTH = 150;
+  const LOGO_WATERMARK_HEIGHT = Math.round((LOGO_WATERMARK_WIDTH * 529) / 2075); // 원본 비율(2075x529) 유지
+  const titleColWidthsPx = [1, 2].map((c) => colWidthPx(Number(sheet.getColumn(c).width)));
+  const titleAreaWidthPx = titleColWidthsPx[0] + titleColWidthsPx[1];
+  let logoOffsetPx = Math.max(0, Math.round((titleAreaWidthPx - LOGO_WATERMARK_WIDTH) / 2));
+  let logoCol = 0;
+  for (const w of titleColWidthsPx) {
+    if (logoOffsetPx < w) break;
+    logoOffsetPx -= w;
+    logoCol += 1;
+  }
+  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
+  const fadedLogoBuffer = await buildFadedLogoImage(
+    logoBuffer,
+    LOGO_WATERMARK_WIDTH,
+    LOGO_WATERMARK_HEIGHT
+  );
+  const logoImageId = workbook.addImage({ buffer: fadedLogoBuffer, extension: "png" });
+  sheet.addImage(logoImageId, {
+    // ExcelJS의 ImagePosition 타입은 nativeCol/nativeColOff를 선언하지 않지만,
+    // Anchor 생성자가 이 필드를 그대로(EMU 단위) XML에 반영하므로 실제 픽셀
+    // 오프셋을 안전하게 지정할 수 있다.
+    tl: {
+      nativeCol: logoCol,
+      nativeColOff: logoOffsetPx * 9525,
+      nativeRow: titleStartRow - 1,
+      nativeRowOff: 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
+    ext: { width: LOGO_WATERMARK_WIDTH, height: LOGO_WATERMARK_HEIGHT },
+  });
 
   sheet.addRow([]);
 
@@ -320,24 +356,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   });
   grandRow.getCell(3).numFmt = MONEY_FORMAT;
 
-  const watermarkSpacerRow = sheet.addRow([]);
-
-  // 로고 워터마크 — 품목 표 왼쪽 아래(안내사항 시작 전 여백)에 작게, 옅게 삽입.
-  // 일반 삽입 이미지(addImage)라 시트 배경(addBackgroundImage)과 달리 인쇄 시에도
-  // 함께 출력된다.
-  const LOGO_WATERMARK_WIDTH = 150;
-  const LOGO_WATERMARK_HEIGHT = Math.round((LOGO_WATERMARK_WIDTH * 529) / 2075); // 원본 비율(2075x529) 유지
-  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
-  const fadedLogoBuffer = await buildFadedLogoImage(
-    logoBuffer,
-    LOGO_WATERMARK_WIDTH,
-    LOGO_WATERMARK_HEIGHT
-  );
-  const watermarkImageId = workbook.addImage({ buffer: fadedLogoBuffer, extension: "png" });
-  sheet.addImage(watermarkImageId, {
-    tl: { col: 0, row: watermarkSpacerRow.number - 1 },
-    ext: { width: LOGO_WATERMARK_WIDTH, height: LOGO_WATERMARK_HEIGHT },
-  });
+  sheet.addRow([]);
 
   // ── 5. 안내사항 ──
   const noticeHeaderRow = sheet.addRow(["안내사항"]);
