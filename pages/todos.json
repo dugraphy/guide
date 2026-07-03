@@ -3,6 +3,6 @@
   "title": "할 일 목록",
   "icon": "✅",
   "description": "개발 로드맵과 남은 작업을 추적합니다.",
-  "body": "[{\"id\":\"c9e63248-d7f2-417e-88d1-0931024e80a5\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
+  "body": "[{\"id\":\"c9e63248-d7f2-417e-88d1-0931024e80a5\",\"type\":\"table\",\"props\":{\"textColor\":\"default\"},\"content\":{\"type\":\"tableContent\",\"columnWidths\":[null,null,null],\"rows\":[{\"cells\":[{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}},{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}},{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}}]},{\"cells\":[{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}},{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}},{\"type\":\"tableCell\",\"content\":[],\"props\":{\"colspan\":1,\"rowspan\":1,\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"}}]}]},\"children\":[]}]",
   "sortOrder": 3
 }
