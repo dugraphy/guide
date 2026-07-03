@@ -5,7 +5,6 @@ import SidebarItem from "./SidebarItem";
 import SortablePagesList from "./SortablePagesList";
 import SortableDatabasesList from "./SortableDatabasesList";
 import NewPageButton from "./NewPageButton";
-import NewQuoteButton from "./NewQuoteButton";
 import AuthSection from "./AuthSection";
 
 const NAV_ITEMS = [
@@ -65,7 +64,6 @@ export default async function Sidebar() {
               </span>
             </div>
             <SidebarItem href="/quotes" label="견적서 목록" />
-            <NewQuoteButton />
           </>
         )}
       </nav>

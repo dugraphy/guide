@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
 import { getQuotes } from "@/lib/quotes";
+import { getBusinessProfile } from "@/lib/businessProfile";
 import { formatCurrency } from "@/lib/format";
+import { calcQuoteTotals } from "@/lib/quoteExcel";
+import QuoteListRowActions from "@/components/quotes/QuoteListRowActions";
 
 export default async function QuotesPage() {
   const { role } = await getSessionUser();
@@ -10,7 +13,7 @@ export default async function QuotesPage() {
     redirect("/");
   }
 
-  const quotes = await getQuotes();
+  const [quotes, businessProfile] = await Promise.all([getQuotes(), getBusinessProfile()]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -49,15 +52,13 @@ export default async function QuotesPage() {
                   <th className="text-right px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]">
                     총 청구액
                   </th>
+                  <th className="w-32 px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
                 </tr>
               </thead>
               <tbody>
                 {quotes.map((quote, idx) => {
-                  const supplyTotal = quote.items.reduce(
-                    (sum, item) => sum + item.discountPrice * item.qty,
-                    0
-                  );
-                  const total = quote.vatIncluded ? supplyTotal * 1.1 : supplyTotal;
+                  const total = calcQuoteTotals(quote.items, quote.depositRate, quote.vatIncluded)
+                    .totalBilled;
                   return (
                     <tr
                       key={quote.id}
@@ -76,6 +77,9 @@ export default async function QuotesPage() {
                       </td>
                       <td className="px-3 py-2.5 border-b border-[var(--border)] text-right text-[var(--fg)]">
                         {formatCurrency(total)}
+                      </td>
+                      <td className="px-3 py-2.5 border-b border-[var(--border)]">
+                        <QuoteListRowActions quote={quote} businessProfile={businessProfile} />
                       </td>
                     </tr>
                   );

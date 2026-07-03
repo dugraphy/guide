@@ -3,27 +3,13 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import ExcelJS from "exceljs";
 import type { BusinessProfile } from "@/lib/businessProfile";
-import type { QuoteItem, QuoteType } from "@/lib/quotes";
+import type { QuoteItem, QuoteRow, QuoteType } from "@/lib/quotes";
 import { formatCurrency } from "@/lib/format";
+import { calcQuoteTotals, downloadQuoteExcel } from "@/lib/quoteExcel";
 import { TABLE } from "@/components/table/tableStyles";
 
 type VatMode = "exclusive" | "inclusive";
-
-const HEADER_FILL: ExcelJS.Fill = {
-  type: "pattern",
-  pattern: "solid",
-  fgColor: { argb: "FFF2F2F2" },
-};
-const THIN_BORDER_SIDE: ExcelJS.Border = { style: "thin", color: { argb: "FFCCCCCC" } };
-const THIN_BORDER: Partial<ExcelJS.Borders> = {
-  top: THIN_BORDER_SIDE,
-  bottom: THIN_BORDER_SIDE,
-  left: THIN_BORDER_SIDE,
-  right: THIN_BORDER_SIDE,
-};
-const MONEY_FORMAT = "#,##0";
 
 const DEFAULT_NOTES: Record<QuoteType, string> = {
   리뉴얼:
@@ -50,40 +36,26 @@ function todayISO(): string {
 
 interface Props {
   businessProfile: BusinessProfile;
+  existingQuote?: QuoteRow;
 }
 
-export default function QuoteBuilder({ businessProfile }: Props) {
+export default function QuoteBuilder({ businessProfile, existingQuote }: Props) {
   const router = useRouter();
-  const [quoteType, setQuoteType] = useState<QuoteType | null>(null);
-  const [clientName, setClientName] = useState("");
-  const [quoteDate, setQuoteDate] = useState(todayISO());
-  const [items, setItems] = useState<QuoteItem[]>([emptyItem()]);
-  const [depositRate, setDepositRate] = useState(30);
-  const [notes, setNotes] = useState("");
-  const [vatMode, setVatMode] = useState<VatMode>("exclusive");
+  const [quoteType, setQuoteType] = useState<QuoteType | null>(existingQuote?.quoteType ?? null);
+  const [clientName, setClientName] = useState(existingQuote?.clientName ?? "");
+  const [quoteDate, setQuoteDate] = useState(existingQuote?.quoteDate ?? todayISO());
+  const [items, setItems] = useState<QuoteItem[]>(existingQuote?.items ?? [emptyItem()]);
+  const [depositRate, setDepositRate] = useState(existingQuote?.depositRate ?? 30);
+  const [notes, setNotes] = useState(existingQuote?.notes ?? "");
+  const [vatMode, setVatMode] = useState<VatMode>(
+    existingQuote?.vatIncluded ? "inclusive" : "exclusive"
+  );
   const [downloading, setDownloading] = useState(false);
 
-  const totals = useMemo(() => {
-    const totalBeforeDiscount = items.reduce((sum, it) => sum + it.unitPrice * it.qty, 0);
-    const totalAfterDiscount = items.reduce((sum, it) => sum + it.discountPrice * it.qty, 0);
-    const discountAmount = totalBeforeDiscount - totalAfterDiscount;
-    const vat = vatMode === "inclusive" ? totalAfterDiscount * 0.1 : 0;
-    const grandTotal = totalAfterDiscount + vat;
-    // 계약금/잔금의 기준 금액: 부가세 포함이면 합계금액, 별도면 공급가액(할인 후)
-    const depositBase = vatMode === "inclusive" ? grandTotal : totalAfterDiscount;
-    const deposit = depositBase * (depositRate / 100);
-    const balance = depositBase - deposit;
-    return {
-      totalBeforeDiscount,
-      totalAfterDiscount,
-      discountAmount,
-      vat,
-      grandTotal,
-      deposit,
-      balance,
-      totalBilled: depositBase,
-    };
-  }, [items, depositRate, vatMode]);
+  const totals = useMemo(
+    () => calcQuoteTotals(items, depositRate, vatMode === "inclusive"),
+    [items, depositRate, vatMode]
+  );
 
   const selectType = (type: QuoteType) => {
     setQuoteType(type);
@@ -114,139 +86,36 @@ export default function QuoteBuilder({ businessProfile }: Props) {
       return;
     }
     setDownloading(true);
+    const vatIncluded = vatMode === "inclusive";
     try {
-      const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet("견적서");
-      sheet.columns = [
-        { width: 16 },
-        { width: 26 },
-        { width: 12 },
-        { width: 12 },
-        { width: 8 },
-        { width: 16 },
-        { width: 20 },
-      ];
-
-      const labelCells: ExcelJS.Cell[] = []; // 굵게 + 배경색만 (테두리 없음)
-
-      const titleRow = sheet.addRow(["견적서"]);
-      sheet.addRow([]);
-      const bizRow1 = sheet.addRow(["상호", businessProfile.companyName, "", "사업자번호", businessProfile.businessNumber]);
-      const bizRow2 = sheet.addRow(["대표자", businessProfile.ownerName, "", "전화번호", businessProfile.phone]);
-      const bizRow3 = sheet.addRow(["주소", businessProfile.address, "", "이메일", businessProfile.email]);
-      sheet.addRow([]);
-      const clientRow = sheet.addRow(["의뢰인명", clientName, "", "견적일자", quoteDate]);
-      const typeRow = sheet.addRow(["견적유형", quoteType]);
-      [bizRow1, bizRow2, bizRow3, clientRow].forEach((row) => {
-        labelCells.push(row.getCell(1), row.getCell(4));
-      });
-      labelCells.push(typeRow.getCell(1));
-      sheet.addRow([]);
-
-      const itemsHeaderRow = sheet.addRow(["No", "품목", "단가", "할인단가", "수량", "공급가(부가세 별도)", "비고"]);
-      const itemRows = items.map((item, i) =>
-        sheet.addRow([
-          i + 1,
-          item.name,
-          item.unitPrice,
-          item.discountPrice,
-          item.qty,
-          item.discountPrice * item.qty,
-          item.note,
-        ])
-      );
-      sheet.addRow([]);
-
-      const totalsRows: ExcelJS.Row[] = [];
-      totalsRows.push(sheet.addRow(["총 공급가액(할인 전)", totals.totalBeforeDiscount]));
-      totalsRows.push(sheet.addRow(["할인 금액", totals.discountAmount]));
-      totalsRows.push(sheet.addRow(["총 공급가액(할인 후)", totals.totalAfterDiscount]));
-      if (vatMode === "inclusive") {
-        totalsRows.push(sheet.addRow(["부가세(10%)", totals.vat]));
-        totalsRows.push(sheet.addRow(["합계금액", totals.grandTotal]));
-      }
-      totalsRows.push(sheet.addRow([`계약금 (${depositRate}%)`, totals.deposit]));
-      totalsRows.push(sheet.addRow(["잔금", totals.balance]));
-      totalsRows.push(sheet.addRow(["총 청구액", totals.totalBilled]));
-      sheet.addRow([
-        vatMode === "inclusive"
-          ? "* 부가세(10%)가 포함된 금액입니다."
-          : "* 상기 금액은 부가세 별도입니다.",
-      ]);
-      sheet.addRow([]);
-      sheet.addRow(["안내사항"]);
-      notes.split("\n").forEach((line) => sheet.addRow([line]));
-
-      // 제목 셀: 여러 열 병합 + 크게
-      sheet.mergeCells(titleRow.number, 1, titleRow.number, 7);
-      const titleCell = titleRow.getCell(1);
-      titleCell.font = { bold: true, size: 18 };
-      titleCell.alignment = { horizontal: "center", vertical: "middle" };
-
-      // 라벨 셀(사업자정보/견적정보) — 굵게 + 연한 회색 배경
-      labelCells.forEach((cell) => {
-        cell.font = { bold: true };
-        cell.fill = HEADER_FILL;
+      await downloadQuoteExcel({
+        businessProfile,
+        clientName,
+        quoteDate,
+        quoteType,
+        items,
+        depositRate,
+        notes,
+        vatIncluded,
       });
 
-      // 품목표: 헤더 굵게+배경색, 전체(헤더+본문) 테두리, 금액 열 천단위 콤마
-      for (let c = 1; c <= 7; c++) {
-        const cell = itemsHeaderRow.getCell(c);
-        cell.font = { bold: true };
-        cell.fill = HEADER_FILL;
-        cell.alignment = { horizontal: "center", vertical: "middle" };
-        cell.border = THIN_BORDER;
-      }
-      itemRows.forEach((row) => {
-        for (let c = 1; c <= 7; c++) {
-          row.getCell(c).border = THIN_BORDER;
-        }
-        // 단가(3) / 할인단가(4) / 공급가(6)
-        [3, 4, 6].forEach((c) => {
-          row.getCell(c).numFmt = MONEY_FORMAT;
-        });
-      });
-
-      // 합계 영역: 금액 열(2번째 컬럼) 천단위 콤마
-      totalsRows.forEach((row) => {
-        row.getCell(2).numFmt = MONEY_FORMAT;
-      });
-
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `견적서_${clientName}_${quoteDate}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      const res = await fetch("/api/quotes", {
-        method: "POST",
+      const isEdit = !!existingQuote;
+      const res = await fetch(isEdit ? `/api/quotes/${existingQuote.id}` : "/api/quotes", {
+        method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientName,
-          quoteDate,
-          quoteType,
-          items,
-          depositRate,
-          notes,
-          vatIncluded: vatMode === "inclusive",
-        }),
+        body: JSON.stringify({ clientName, quoteDate, quoteType, items, depositRate, notes, vatIncluded }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         alert(data.error ?? "견적서 기록 저장에 실패했습니다. (엑셀 파일은 다운로드되었습니다)");
+      } else if (isEdit) {
+        router.push("/quotes");
       } else {
         router.refresh();
       }
     } finally {
       setDownloading(false);
-      resetForm();
+      if (!existingQuote) resetForm();
     }
   };
 
@@ -279,9 +148,13 @@ export default function QuoteBuilder({ businessProfile }: Props) {
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[var(--fg)]">
-          새 견적서 <span className="text-sm font-normal text-[var(--fg-muted)]">· {quoteType}</span>
+          {existingQuote ? "견적서 수정" : "새 견적서"}{" "}
+          <span className="text-sm font-normal text-[var(--fg-muted)]">· {quoteType}</span>
         </h1>
-        <button onClick={resetForm} className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)]">
+        <button
+          onClick={() => (existingQuote ? setQuoteType(null) : resetForm())}
+          className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)]"
+        >
           유형 다시 선택
         </button>
       </div>
