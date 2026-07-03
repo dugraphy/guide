@@ -22,18 +22,12 @@
   margin-top: 20px;
 }
 
-/* 배경색이 "gray"로 저장된 블록(과거 데이터, 또는 에디터에서 수동으로
-   회색 배경을 고른 경우)의 배경색만 투명하게 없앤다 — 왼쪽 컬러 바는
-   위 level-3 규칙에서 그대로 유지된다. BlockNote 코어 CSS가
-   --bn-colors-* 같은 CSS 변수가 아니라 [data-background-color=gray]
-   선택자에 hex(#ebeced)를 직접 하드코딩해서 칠하므로, 같은 선택자를
-   .bn-editor로 감싸 specificity를 높여 투명으로 덮어쓴다. */
-.bn-editor .bn-block[data-background-color="gray"]{
+
+.bn-editor .bn-block [data-background-color="gray"],
+.bn-editor .bn-block [data-background-color="gray"] .bn-block-content {
   background-color: transparent;
 }
-.bn-editor .bn-block .bn-block-content[data-background-color="gray"] {
-  background-color: transparent;
-}
+
 /* 표: 헤더 행 배경, 짝수 행 zebra striping, 넉넉한 padding, 둥근 모서리 */
 .bn-editor [data-content-type="table"] table {
   border-collapse: separate;
