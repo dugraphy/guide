@@ -69,34 +69,26 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 };
 const MONEY_FORMAT = '#,##0"원"';
 const QTY_FORMAT = '0"ea"';
-const PT_TO_PX = 1.3333;
-// 엑셀 열 너비(문자 단위) → 픽셀 근사 변환(Calibri 11 기준): px ≈ width*7 + 5
-const colWidthPx = (width: number) => Math.round(width * 7 + 5);
 
-// 워터마크 — 로고를 옅게(12% 불투명도) 처리해 문서 사용 영역 크기의 캔버스
-// 가운데에 한 번만 그린 PNG를 새로 만든다. (buildQuoteWorkbook 하단 참고)
-async function buildWatermarkImage(
+// 워터마크 — 로고를 지정된 크기로 그리되, 캔버스에서 낮은 불투명도(12%)로
+// 합성해 새 PNG를 만든다. ExcelJS의 일반 addImage()는 이미지 자체의 투명도
+// 옵션을 지원하지 않으므로, 픽셀 자체에 옅은 알파를 구워 넣는 방식을 쓴다.
+// 이렇게 만든 이미지는 (배경 이미지가 아닌) 일반 삽입 이미지이므로 인쇄 시에도
+// 함께 출력된다.
+async function buildFadedLogoImage(
   logoBuffer: ArrayBuffer,
-  targetWidth: number,
-  targetHeight: number
+  width: number,
+  height: number
 ): Promise<ArrayBuffer> {
   const blob = new Blob([logoBuffer], { type: "image/png" });
   const bitmap = await createImageBitmap(blob);
   const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, targetWidth);
-  canvas.height = Math.max(1, targetHeight);
+  canvas.width = Math.max(1, width);
+  canvas.height = Math.max(1, height);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("워터마크용 캔버스 컨텍스트를 생성하지 못했습니다.");
-  const logoWidth = canvas.width * 0.55;
-  const logoHeight = logoWidth * (bitmap.height / bitmap.width);
   ctx.globalAlpha = 0.12;
-  ctx.drawImage(
-    bitmap,
-    (canvas.width - logoWidth) / 2,
-    (canvas.height - logoHeight) / 2,
-    logoWidth,
-    logoHeight
-  );
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   const pngBlob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("워터마크 이미지 생성에 실패했습니다."))),
@@ -328,7 +320,24 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   });
   grandRow.getCell(3).numFmt = MONEY_FORMAT;
 
-  sheet.addRow([]);
+  const watermarkSpacerRow = sheet.addRow([]);
+
+  // 로고 워터마크 — 품목 표 왼쪽 아래(안내사항 시작 전 여백)에 작게, 옅게 삽입.
+  // 일반 삽입 이미지(addImage)라 시트 배경(addBackgroundImage)과 달리 인쇄 시에도
+  // 함께 출력된다.
+  const LOGO_WATERMARK_WIDTH = 150;
+  const LOGO_WATERMARK_HEIGHT = Math.round((LOGO_WATERMARK_WIDTH * 529) / 2075); // 원본 비율(2075x529) 유지
+  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
+  const fadedLogoBuffer = await buildFadedLogoImage(
+    logoBuffer,
+    LOGO_WATERMARK_WIDTH,
+    LOGO_WATERMARK_HEIGHT
+  );
+  const watermarkImageId = workbook.addImage({ buffer: fadedLogoBuffer, extension: "png" });
+  sheet.addImage(watermarkImageId, {
+    tl: { col: 0, row: watermarkSpacerRow.number - 1 },
+    ext: { width: LOGO_WATERMARK_WIDTH, height: LOGO_WATERMARK_HEIGHT },
+  });
 
   // ── 5. 안내사항 ──
   const noticeHeaderRow = sheet.addRow(["안내사항"]);
@@ -351,30 +360,6 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     row.height = 20;
   });
-
-  // ── 워터마크: 로고를 옅게 처리해 시트 배경으로 깐다 ──
-  // ExcelJS의 addBackgroundImage()는 Excel의 "시트 배경" 기능과 동일하게 이미지를
-  // 원본 픽셀 크기 그대로 타일링하며, 위치/크기를 지정하는 옵션은 없다. 이 문서
-  // 한 장 분량 안에서 타일이 반복되어 로고가 여러 번 보이지 않도록, 문서의 실제
-  // 사용 영역 크기에 맞춘 캔버스 가운데에 로고를 한 번만(12% 불투명도로) 그린
-  // 새 PNG를 만들어 배경으로 사용한다.
-  const contentWidthPx = sheet.columns.reduce(
-    (sum, col) => sum + colWidthPx(Number(col.width ?? 8.43)),
-    0
-  );
-  let contentHeightPx = 0;
-  sheet.eachRow((row) => {
-    contentHeightPx += (row.height ?? 15) * PT_TO_PX;
-  });
-
-  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
-  const watermarkBuffer = await buildWatermarkImage(
-    logoBuffer,
-    Math.round(contentWidthPx),
-    Math.round(contentHeightPx)
-  );
-  const watermarkImageId = workbook.addImage({ buffer: watermarkBuffer, extension: "png" });
-  sheet.addBackgroundImage(watermarkImageId);
 
   return workbook;
 }
