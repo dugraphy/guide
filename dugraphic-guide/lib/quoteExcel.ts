@@ -69,6 +69,42 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 };
 const MONEY_FORMAT = '#,##0"원"';
 const QTY_FORMAT = '0"ea"';
+const PT_TO_PX = 1.3333;
+// 엑셀 열 너비(문자 단위) → 픽셀 근사 변환(Calibri 11 기준): px ≈ width*7 + 5
+const colWidthPx = (width: number) => Math.round(width * 7 + 5);
+
+// 워터마크 — 로고를 옅게(12% 불투명도) 처리해 문서 사용 영역 크기의 캔버스
+// 가운데에 한 번만 그린 PNG를 새로 만든다. (buildQuoteWorkbook 하단 참고)
+async function buildWatermarkImage(
+  logoBuffer: ArrayBuffer,
+  targetWidth: number,
+  targetHeight: number
+): Promise<ArrayBuffer> {
+  const blob = new Blob([logoBuffer], { type: "image/png" });
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, targetWidth);
+  canvas.height = Math.max(1, targetHeight);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("워터마크용 캔버스 컨텍스트를 생성하지 못했습니다.");
+  const logoWidth = canvas.width * 0.55;
+  const logoHeight = logoWidth * (bitmap.height / bitmap.width);
+  ctx.globalAlpha = 0.12;
+  ctx.drawImage(
+    bitmap,
+    (canvas.width - logoWidth) / 2,
+    (canvas.height - logoHeight) / 2,
+    logoWidth,
+    logoHeight
+  );
+  const pngBlob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("워터마크 이미지 생성에 실패했습니다."))),
+      "image/png"
+    );
+  });
+  return pngBlob.arrayBuffer();
+}
 
 function styleLabelCell(cell: ExcelJS.Cell, size = 11) {
   cell.font = { name: FONT_NAME, bold: true, size };
@@ -133,61 +169,12 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   });
   const titleEndRow = sheet.rowCount;
 
-  // 로고를 왼쪽에, "견적서" 제목을 오른쪽에 배치 — 둘 다 titleStartRow~titleEndRow
-  // (사업자정보 표와 같은 6행 범위) 안에서 세로 중앙 정렬한다.
-  const EMU_PER_PX = 9525;
-  const EMU_PER_PT = 12700;
-
-  // 주어진 오프셋(EMU)이 몇 번째 구간(행/열)의 몇 EMU 지점에 해당하는지 찾는다.
-  function locateOffset(sizesEMU: number[], targetEMU: number): { index: number; remainder: number } {
-    let index = 0;
-    let remaining = targetEMU;
-    for (const size of sizesEMU) {
-      if (remaining < size || index === sizesEMU.length - 1) break;
-      remaining -= size;
-      index += 1;
-    }
-    return { index, remainder: Math.max(0, Math.round(remaining)) };
-  }
-
-  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
-  const logoImageId = workbook.addImage({ buffer: logoBuffer, extension: "png" });
-  const LOGO_HEIGHT = 30;
-  const LOGO_WIDTH = Math.round((LOGO_HEIGHT * 2075) / 529); // 원본 로고 비율(2075x529) 유지
-
-  // 세로 중앙 정렬: titleStartRow~titleEndRow(6행, 각 22pt) 전체 높이 가운데에 로고를 둔다.
-  const titleRowHeightsEMU = bizRows.map(() => 22 * EMU_PER_PT);
-  const titleAreaHeightEMU = titleRowHeightsEMU.reduce((sum, h) => sum + h, 0);
-  const logoTopOffsetEMU = Math.max(0, Math.round((titleAreaHeightEMU - LOGO_HEIGHT * EMU_PER_PX) / 2));
-  const { index: logoRowIndex, remainder: logoRowOffEMU } = locateOffset(
-    titleRowHeightsEMU,
-    logoTopOffsetEMU
-  );
-
-  sheet.addImage(logoImageId, {
-    // ExcelJS의 ImagePosition 타입은 nativeCol/nativeColOff/nativeRow/nativeRowOff를
-    // 선언하지 않지만, Anchor 생성자가 이 필드를 그대로(EMU 단위) XML에 반영하므로
-    // 실제 픽셀 단위 위치를 안전하게 지정할 수 있다.
-    tl: {
-      nativeCol: 0,
-      nativeColOff: 0,
-      nativeRow: titleStartRow - 1 + logoRowIndex,
-      nativeRowOff: logoRowOffEMU,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any,
-    ext: { width: LOGO_WIDTH, height: LOGO_HEIGHT },
-  });
-
-  // 제목 — 로고와 같은 6행 범위(cols1-2) 안에서, 로고 폭만큼 들여쓰기(indent)해
-  // 로고 바로 옆에 붙어 보이도록 좁은 간격만 남긴다. (오른쪽 정렬은 셀 전체
-  // 폭 기준이라 로고와 제목 사이가 지나치게 벌어져 보여 좌측 정렬+indent로 변경)
+  // 제목 — "{상호명} 견적서" (상호명은 business_profile.company_name을 그대로 사용)
   sheet.mergeCells(titleStartRow, 1, titleEndRow, 2);
   const titleCell = sheet.getCell(titleStartRow, 1);
-  titleCell.value = "견적서";
+  titleCell.value = `${businessProfile.companyName} 견적서`;
   titleCell.font = { name: FONT_NAME, bold: true, size: 21 };
-  // indent 1레벨 ≈ 3자 폭(약 21px). 로고 폭(118px) + 약간의 여백만큼만 들여쓴다.
-  const titleIndentLevel = Math.round((LOGO_WIDTH + 8) / 21);
-  titleCell.alignment = { horizontal: "left", vertical: "middle", indent: titleIndentLevel };
+  titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
   sheet.addRow([]);
 
@@ -364,6 +351,30 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
     row.height = 20;
   });
+
+  // ── 워터마크: 로고를 옅게 처리해 시트 배경으로 깐다 ──
+  // ExcelJS의 addBackgroundImage()는 Excel의 "시트 배경" 기능과 동일하게 이미지를
+  // 원본 픽셀 크기 그대로 타일링하며, 위치/크기를 지정하는 옵션은 없다. 이 문서
+  // 한 장 분량 안에서 타일이 반복되어 로고가 여러 번 보이지 않도록, 문서의 실제
+  // 사용 영역 크기에 맞춘 캔버스 가운데에 로고를 한 번만(12% 불투명도로) 그린
+  // 새 PNG를 만들어 배경으로 사용한다.
+  const contentWidthPx = sheet.columns.reduce(
+    (sum, col) => sum + colWidthPx(Number(col.width ?? 8.43)),
+    0
+  );
+  let contentHeightPx = 0;
+  sheet.eachRow((row) => {
+    contentHeightPx += (row.height ?? 15) * PT_TO_PX;
+  });
+
+  const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
+  const watermarkBuffer = await buildWatermarkImage(
+    logoBuffer,
+    Math.round(contentWidthPx),
+    Math.round(contentHeightPx)
+  );
+  const watermarkImageId = workbook.addImage({ buffer: watermarkBuffer, extension: "png" });
+  sheet.addBackgroundImage(watermarkImageId);
 
   return workbook;
 }
