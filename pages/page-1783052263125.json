@@ -1,8 +1,8 @@
 {
   "slug": "page-1783052263125",
-  "title": "제목 없음",
+  "title": "주간업무",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"9fdda726-297f-4741-957d-c89570171935\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
+  "body": "[{\"id\":\"9fdda726-297f-4741-957d-c89570171935\",\"type\":\"paragraph\",\"props\":{\"textColor\":\"default\",\"textAlignment\":\"left\",\"backgroundColor\":\"default\"},\"content\":[],\"children\":[]}]",
   "sortOrder": 4
 }
