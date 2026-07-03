@@ -30,20 +30,18 @@
 }
 
 
-/* 표 블록만 페이지 폭 제한을 벗어나 "문의 클라이언트" DB 뷰(/db/inquiry-clients)와
-   같은 폭(사이드바를 제외한 전체 콘텐츠 영역)까지 넓어지게 한다. BlockNote의
-   .bn-editor가 padding-inline: 54px로 좌우를 좁히는 게 유일한 폭 제한이라(이
-   페이지에는 별도 max-width가 없다), 표 블록에서만 그 54px씩을 음수 마진으로
-   상쇄한다. 표가 아닌 다른 블록(제목/문단/체크박스 등)은 이 규칙의 영향을
-   받지 않아 기존 폭 그대로 유지된다. */
-.bn-editor [data-content-type="table"] {
-  width: calc(100% + 108px);
-  margin-inline: -54px;
+/* 페이지 본문 전체(표뿐 아니라 제목/문단/체크박스 등 모든 블록)를 "문의 클라이언트"
+   DB 뷰(/db/inquiry-clients)와 같은 폭까지 넓힌다. BlockNote 코어의
+   .bn-editor { padding-inline: 54px }가 유일한 폭 제한이었고(앱 자체 CSS에는
+   별도 max-width가 없다), DB 뷰는 이 padding 없이 바깥 wrapper(px-8)만 쓰므로
+   여기서 0으로 없애면 두 화면의 좌우 여백이 정확히 같아진다. */
+.bn-editor {
+  padding-inline: 0;
 }
 
 /* 표: 헤더 행 배경, 짝수 행 zebra striping, 넉넉한 padding, 둥근 모서리.
    table의 기본 width:auto!important(BlockNote 코어)를 100%로 덮어써서,
-   위에서 넓힌 컨테이너를 실제로 꽉 채우도록 한다. */
+   페이지 폭 전체를 실제로 꽉 채우도록 한다. */
 .bn-editor [data-content-type="table"] table {
   width: 100% !important;
   border-collapse: separate;
