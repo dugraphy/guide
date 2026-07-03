@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import * as XLSX from "xlsx-js-style";
+import ExcelJS from "exceljs";
 import type { BusinessProfile } from "@/lib/businessProfile";
 import type { QuoteItem, QuoteType } from "@/lib/quotes";
 import { formatCurrency } from "@/lib/format";
@@ -11,9 +11,13 @@ import { TABLE } from "@/components/table/tableStyles";
 
 type VatMode = "exclusive" | "inclusive";
 
-const HEADER_FILL = { fgColor: { rgb: "F2F2F2" } };
-const THIN_BORDER_SIDE = { style: "thin", color: { rgb: "CCCCCC" } } as const;
-const THIN_BORDER = {
+const HEADER_FILL: ExcelJS.Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFF2F2F2" },
+};
+const THIN_BORDER_SIDE: ExcelJS.Border = { style: "thin", color: { argb: "FFCCCCCC" } };
+const THIN_BORDER: Partial<ExcelJS.Borders> = {
   top: THIN_BORDER_SIDE,
   bottom: THIN_BORDER_SIDE,
   left: THIN_BORDER_SIDE,
@@ -111,32 +115,37 @@ export default function QuoteBuilder({ businessProfile }: Props) {
     }
     setDownloading(true);
     try {
-      const rows: (string | number)[][] = [];
-      const labelCells: [number, number][] = []; // 굵게 + 배경색만 (테두리 없음)
-      let r = 0;
-      const push = (row: (string | number)[]) => {
-        rows.push(row);
-        return r++;
-      };
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet("견적서");
+      sheet.columns = [
+        { width: 16 },
+        { width: 26 },
+        { width: 12 },
+        { width: 12 },
+        { width: 8 },
+        { width: 16 },
+        { width: 20 },
+      ];
 
-      const titleRow = push(["견적서"]);
-      push([]);
-      const bizRow1 = push(["상호", businessProfile.companyName, "", "사업자번호", businessProfile.businessNumber]);
-      const bizRow2 = push(["대표자", businessProfile.ownerName, "", "전화번호", businessProfile.phone]);
-      const bizRow3 = push(["주소", businessProfile.address, "", "이메일", businessProfile.email]);
-      push([]);
-      const clientRow = push(["의뢰인명", clientName, "", "견적일자", quoteDate]);
-      const typeRow = push(["견적유형", quoteType]);
+      const labelCells: ExcelJS.Cell[] = []; // 굵게 + 배경색만 (테두리 없음)
+
+      const titleRow = sheet.addRow(["견적서"]);
+      sheet.addRow([]);
+      const bizRow1 = sheet.addRow(["상호", businessProfile.companyName, "", "사업자번호", businessProfile.businessNumber]);
+      const bizRow2 = sheet.addRow(["대표자", businessProfile.ownerName, "", "전화번호", businessProfile.phone]);
+      const bizRow3 = sheet.addRow(["주소", businessProfile.address, "", "이메일", businessProfile.email]);
+      sheet.addRow([]);
+      const clientRow = sheet.addRow(["의뢰인명", clientName, "", "견적일자", quoteDate]);
+      const typeRow = sheet.addRow(["견적유형", quoteType]);
       [bizRow1, bizRow2, bizRow3, clientRow].forEach((row) => {
-        labelCells.push([row, 0], [row, 3]);
+        labelCells.push(row.getCell(1), row.getCell(4));
       });
-      labelCells.push([typeRow, 0]);
-      push([]);
+      labelCells.push(typeRow.getCell(1));
+      sheet.addRow([]);
 
-      const itemsHeaderRow = push(["No", "품목", "단가", "할인단가", "수량", "공급가(부가세 별도)", "비고"]);
-      const itemsFirstRow = r;
-      items.forEach((item, i) => {
-        push([
+      const itemsHeaderRow = sheet.addRow(["No", "품목", "단가", "할인단가", "수량", "공급가(부가세 별도)", "비고"]);
+      const itemRows = items.map((item, i) =>
+        sheet.addRow([
           i + 1,
           item.name,
           item.unitPrice,
@@ -144,93 +153,77 @@ export default function QuoteBuilder({ businessProfile }: Props) {
           item.qty,
           item.discountPrice * item.qty,
           item.note,
-        ]);
-      });
-      const itemsLastRow = r - 1;
-      push([]);
+        ])
+      );
+      sheet.addRow([]);
 
-      const totalsStartRow = r;
-      push(["총 공급가액(할인 전)", totals.totalBeforeDiscount]);
-      push(["할인 금액", totals.discountAmount]);
-      push(["총 공급가액(할인 후)", totals.totalAfterDiscount]);
+      const totalsRows: ExcelJS.Row[] = [];
+      totalsRows.push(sheet.addRow(["총 공급가액(할인 전)", totals.totalBeforeDiscount]));
+      totalsRows.push(sheet.addRow(["할인 금액", totals.discountAmount]));
+      totalsRows.push(sheet.addRow(["총 공급가액(할인 후)", totals.totalAfterDiscount]));
       if (vatMode === "inclusive") {
-        push(["부가세(10%)", totals.vat]);
-        push(["합계금액", totals.grandTotal]);
+        totalsRows.push(sheet.addRow(["부가세(10%)", totals.vat]));
+        totalsRows.push(sheet.addRow(["합계금액", totals.grandTotal]));
       }
-      push([`계약금 (${depositRate}%)`, totals.deposit]);
-      push(["잔금", totals.balance]);
-      push(["총 청구액", totals.totalBilled]);
-      const totalsEndRow = r - 1;
-      push([
+      totalsRows.push(sheet.addRow([`계약금 (${depositRate}%)`, totals.deposit]));
+      totalsRows.push(sheet.addRow(["잔금", totals.balance]));
+      totalsRows.push(sheet.addRow(["총 청구액", totals.totalBilled]));
+      sheet.addRow([
         vatMode === "inclusive"
           ? "* 부가세(10%)가 포함된 금액입니다."
           : "* 상기 금액은 부가세 별도입니다.",
       ]);
-      push([]);
-      push(["안내사항"]);
-      notes.split("\n").forEach((line) => push([line]));
-
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-
-      // 열 너비 — 품목명은 넓게, 금액 열은 숫자가 안 잘리도록
-      ws["!cols"] = [
-        { wch: 16 },
-        { wch: 26 },
-        { wch: 12 },
-        { wch: 12 },
-        { wch: 8 },
-        { wch: 16 },
-        { wch: 20 },
-      ];
+      sheet.addRow([]);
+      sheet.addRow(["안내사항"]);
+      notes.split("\n").forEach((line) => sheet.addRow([line]));
 
       // 제목 셀: 여러 열 병합 + 크게
-      ws["!merges"] = [{ s: { r: titleRow, c: 0 }, e: { r: titleRow, c: 6 } }];
-
-      const setStyle = (rowIdx: number, colIdx: number, style: Record<string, unknown>) => {
-        const addr = XLSX.utils.encode_cell({ r: rowIdx, c: colIdx });
-        const cell = ws[addr] ?? (ws[addr] = { t: "s", v: "" });
-        cell.s = { ...(cell.s as object), ...style };
-      };
-
-      setStyle(titleRow, 0, {
-        font: { bold: true, sz: 18 },
-        alignment: { horizontal: "center", vertical: "center" },
-      });
+      sheet.mergeCells(titleRow.number, 1, titleRow.number, 7);
+      const titleCell = titleRow.getCell(1);
+      titleCell.font = { bold: true, size: 18 };
+      titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
       // 라벨 셀(사업자정보/견적정보) — 굵게 + 연한 회색 배경
-      labelCells.forEach(([rowIdx, colIdx]) => {
-        setStyle(rowIdx, colIdx, { font: { bold: true }, fill: HEADER_FILL });
+      labelCells.forEach((cell) => {
+        cell.font = { bold: true };
+        cell.fill = HEADER_FILL;
       });
 
       // 품목표: 헤더 굵게+배경색, 전체(헤더+본문) 테두리, 금액 열 천단위 콤마
-      for (let c = 0; c <= 6; c++) {
-        setStyle(itemsHeaderRow, c, {
-          font: { bold: true },
-          fill: HEADER_FILL,
-          alignment: { horizontal: "center", vertical: "center" },
-          border: THIN_BORDER,
-        });
+      for (let c = 1; c <= 7; c++) {
+        const cell = itemsHeaderRow.getCell(c);
+        cell.font = { bold: true };
+        cell.fill = HEADER_FILL;
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border = THIN_BORDER;
       }
-      for (let rr = itemsFirstRow; rr <= itemsLastRow; rr++) {
-        for (let c = 0; c <= 6; c++) {
-          setStyle(rr, c, { border: THIN_BORDER });
+      itemRows.forEach((row) => {
+        for (let c = 1; c <= 7; c++) {
+          row.getCell(c).border = THIN_BORDER;
         }
-        // 단가(2) / 할인단가(3) / 공급가(5)
-        [2, 3, 5].forEach((c) => {
-          const addr = XLSX.utils.encode_cell({ r: rr, c });
-          if (ws[addr]) ws[addr].z = MONEY_FORMAT;
+        // 단가(3) / 할인단가(4) / 공급가(6)
+        [3, 4, 6].forEach((c) => {
+          row.getCell(c).numFmt = MONEY_FORMAT;
         });
-      }
+      });
 
-      // 합계 영역: 금액 열(1번 컬럼) 천단위 콤마
-      for (let rr = totalsStartRow; rr <= totalsEndRow; rr++) {
-        const addr = XLSX.utils.encode_cell({ r: rr, c: 1 });
-        if (ws[addr]) ws[addr].z = MONEY_FORMAT;
-      }
+      // 합계 영역: 금액 열(2번째 컬럼) 천단위 콤마
+      totalsRows.forEach((row) => {
+        row.getCell(2).numFmt = MONEY_FORMAT;
+      });
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "견적서");
-      XLSX.writeFile(wb, `견적서_${clientName}_${quoteDate}.xlsx`);
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `견적서_${clientName}_${quoteDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       const res = await fetch("/api/quotes", {
         method: "POST",
