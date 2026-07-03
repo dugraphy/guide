@@ -3,6 +3,6 @@
   "title": "홈",
   "icon": "🏠",
   "description": "",
-  "body": "[{\"id\":\"f87e0cf0-a58a-4edf-ab9c-c01474f3ac5a\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"d98bce9b-67d1-4b52-8512-01caf3e42762\",\"type\":\"calloutBox\",\"props\":{\"items\":\"[\\\"계약금 입금 시점부터 시안 기획 및 초기 작업이 착수되며, 이는 단순 예약금이 아닌 초기 작업에 대한 대가로 간주됩니다.\\\",\\\"시안 전달 후 (편집 가능한 숫자)일 이내 별도의 이의 제기가 없을 경우, 해당 시안은 승인된 것으로 간주하며 이후 계약금은 환불되지 않습니다.\\\",\\\"시안 승인(문자/카카오톡/이메일을 통한 명시적 승인 포함) 이후 작업이 진행된 경우, 계약금은 환불되지 않습니다.\\\"]\"},\"children\":[]}]",
+  "body": "[{\"id\":\"f4243e30-e82a-475f-a7ca-e2ba37677dd6\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
   "sortOrder": null
 }
