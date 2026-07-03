@@ -35,14 +35,14 @@ function CalloutBoxRenderer({
     >
       <div className="flex flex-col gap-1.5">
         {items.map((item, i) => (
-          <div key={i} className="flex items-start gap-2">
+          <div key={i} className="flex items-start gap-2 text-xs">
             <span className="mt-0.5 text-[var(--fg-muted)]">•</span>
             <input
               value={item}
               disabled={!editor.isEditable}
               onChange={(e) => updateItem(i, e.target.value)}
               onKeyDown={(e) => e.stopPropagation()}
-              className="min-w-0 flex-1 bg-transparent text-sm text-[var(--fg)] outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[var(--fg)] outline-none"
             />
           </div>
         ))}

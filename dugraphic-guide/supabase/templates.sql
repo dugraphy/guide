@@ -118,17 +118,17 @@ insert into public.templates (name, icon, sort_order, blocks) values
 
 ('가격정책', '💰', 6, $tpl6$[
   {"type":"paragraph","content":"본 견적은 프로젝트 범위 확인 후 상담을 통해 최종 산정됩니다. 아래 기준 단가는 참고용입니다."},
-  {"type":"heading","props":{"level":2,"backgroundColor":"gray"},"content":"기준 단가표"},
+  {"type":"heading","props":{"level":3,"backgroundColor":"gray"},"content":"기준 단가표"},
   {"type":"table","content":{"type":"tableContent","rows":[
     {"cells":["항목","단가","조건","비고"]},
     {"cells":["","","",""]},
     {"cells":["","","",""]}
   ]}},
-  {"type":"heading","props":{"level":2,"backgroundColor":"gray"},"content":"가격이 달라지는 경우"},
+  {"type":"heading","props":{"level":3,"backgroundColor":"gray"},"content":"가격이 달라지는 경우"},
   {"type":"calloutBox","props":{"items":"[\"레퍼런스 있음: 기본가 × 1.0\",\"레퍼런스 없이 처음부터 컨셉 설계: 기본가에 (편집 가능한 금액)원 추가\",\"일러스트 제작: 건당 (편집 가능한 금액)원 추가\",\"플랫폼 마이그레이션: 건당 (편집 가능한 금액)원 추가\"]"}},
-  {"type":"heading","props":{"level":2,"backgroundColor":"gray"},"content":"계약금/잔금 기준"},
+  {"type":"heading","props":{"level":3,"backgroundColor":"gray"},"content":"계약금/잔금 기준"},
   {"type":"calloutBox","props":{"items":"[\"계약금은 시안 작업 비용이며, 계약금 입금 시 계약이 확정됩니다.\",\"결과물 제작이 완료되면 잔금 입금 시 결과물이 제공됩니다.\"]"}},
-  {"type":"heading","props":{"level":2,"backgroundColor":"gray"},"content":"계약금 및 취소 규정"},
+  {"type":"heading","props":{"level":3,"backgroundColor":"gray"},"content":"계약금 및 취소 규정"},
   {"type":"calloutBox","props":{"items":"[\"계약금 입금 시점부터 시안 기획 및 초기 작업이 착수되며, 이는 단순 예약금이 아닌 초기 작업에 대한 대가로 간주됩니다.\",\"시안 전달 후 (편집 가능한 숫자)일 이내 별도의 이의 제기가 없을 경우, 해당 시안은 승인된 것으로 간주하며 이후 계약금은 환불되지 않습니다.\",\"시안 승인(문자/카카오톡/이메일을 통한 명시적 승인 포함) 이후 작업이 진행된 경우, 계약금은 환불되지 않습니다.\"]"}}
 ]$tpl6$::jsonb),
 
