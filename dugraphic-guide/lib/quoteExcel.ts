@@ -185,9 +185,15 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   // 우측 보정이 과하면 이미지 오른쪽 끝이 제목 영역을 벗어나 사업자정보 표
   // 쪽으로 넘어가므로, 제목 영역 폭을 넘지 않도록 상한을 둔다.
   const maxLogoOffsetPx = Math.max(0, titleAreaWidthPx - LOGO_WATERMARK_WIDTH);
-  let logoOffsetPx = Math.min(
+  const biasedOffsetPx = Math.min(
     maxLogoOffsetPx,
     Math.max(0, Math.round(titleAreaWidthPx / 2 - LOGO_VISUAL_CENTER_FRACTION * LOGO_WATERMARK_WIDTH))
+  );
+  // 위 보정이 상한(maxLogoOffsetPx)에 걸려 과하게 오른쪽으로 붙었으므로,
+  // 정중앙(naive 50:50 지점)과의 차이 중 약 1/5만큼만 다시 왼쪽으로 미세 조정한다.
+  const naiveCenterOffsetPx = Math.max(0, Math.round((titleAreaWidthPx - LOGO_WATERMARK_WIDTH) / 2));
+  let logoOffsetPx = Math.round(
+    biasedOffsetPx - (biasedOffsetPx - naiveCenterOffsetPx) / 5
   );
   let logoCol = 0;
   for (const w of titleColWidthsPx) {
