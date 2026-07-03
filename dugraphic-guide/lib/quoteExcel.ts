@@ -132,8 +132,16 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     row.height = 22;
   });
   const titleEndRow = sheet.rowCount;
-  sheet.mergeCells(titleStartRow, 1, titleEndRow, 2);
-  const titleCell = sheet.getCell(titleStartRow, 1);
+
+  // 상호명(브랜드) — "견적서" 제목 바로 위에 작게, 연한 회색으로 표시
+  sheet.mergeCells(titleStartRow, 1, titleStartRow, 2);
+  const brandCell = sheet.getCell(titleStartRow, 1);
+  brandCell.value = businessProfile.companyName;
+  brandCell.font = { name: FONT_NAME, size: 13, color: { argb: "FFA6A6A6" } };
+  brandCell.alignment = { horizontal: "center", vertical: "middle" };
+
+  sheet.mergeCells(titleStartRow + 1, 1, titleEndRow, 2);
+  const titleCell = sheet.getCell(titleStartRow + 1, 1);
   titleCell.value = "견적서";
   titleCell.font = { name: FONT_NAME, bold: true, size: 26 };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
