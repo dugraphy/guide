@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getPages } from "@/lib/pages";
 import { getDatabases } from "@/lib/databases";
 import { getSessionUser } from "@/lib/auth";
@@ -6,10 +7,6 @@ import SortablePagesList from "./SortablePagesList";
 import SortableDatabasesList from "./SortableDatabasesList";
 import NewPageButton from "./NewPageButton";
 import AuthSection from "./AuthSection";
-
-const NAV_ITEMS = [
-  { href: "/", label: "홈" },
-];
 
 export default async function Sidebar() {
   const [pages, databases, { email, role }] = await Promise.all([
@@ -23,18 +20,14 @@ export default async function Sidebar() {
       className="flex flex-col shrink-0 border-r border-[var(--border)] bg-[var(--bg-secondary)] overflow-y-auto h-full"
       style={{ width: "var(--sidebar-width)" }}
     >
-      <div className="flex items-center gap-2 px-3 py-3 border-b border-[var(--border)]">
-        <div className="w-6 h-6 rounded bg-[var(--accent)] flex items-center justify-center text-white text-xs font-bold shrink-0">
-          D
-        </div>
-        <span className="font-semibold text-sm truncate">Dugraphic Guide</span>
+      <div className="flex items-center px-3 py-3 border-b border-[var(--border)]">
+        <Link href="/" className="inline-flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/img/logo.png" alt="Dugraphic Guide" className="h-8 w-auto" />
+        </Link>
       </div>
 
       <nav className="flex flex-col gap-0.5 px-1 py-2 flex-1">
-        {NAV_ITEMS.map((item) => (
-          <SidebarItem key={item.href} {...item} />
-        ))}
-
         <div className="mt-4 mb-1 px-2">
           <span className="text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wider">
             페이지
