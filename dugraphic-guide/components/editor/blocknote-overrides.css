@@ -21,7 +21,9 @@
   padding-left: 10px;
   margin-top: 20px;
 }
-
+.bn-block [data-background-color=gray] {
+  background-color: transparent !important;
+}
 .bn-block:has(>.bn-block-content[data-background-color=gray]) {
   background-color: transparent !important;
 }
