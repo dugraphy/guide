@@ -22,11 +22,10 @@
   margin-top: 20px;
 }
 
-
-.bn-editor .bn-block [data-background-color="gray"],
-.bn-editor .bn-block [data-background-color="gray"] .bn-block-content {
+.bn-block:has(>.bn-block-content[data-background-color=gray]) {
   background-color: transparent;
 }
+
 
 /* 표: 헤더 행 배경, 짝수 행 zebra striping, 넉넉한 padding, 둥근 모서리 */
 .bn-editor [data-content-type="table"] table {
