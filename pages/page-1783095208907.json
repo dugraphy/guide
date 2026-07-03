@@ -3,6 +3,6 @@
   "title": "제목 없음",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"708f2135-01ee-4a9f-b1a3-0df32b765173\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"7b85efb8-8697-46d1-a822-49e9738c6ce4\",\"type\":\"calloutBox\",\"props\":{\"items\":\"[\\\"레퍼런스 있음: 기본가 × 1.0\\\",\\\"레퍼런스 없음: 기본가 × 1.3~1.5\\\"]\"},\"children\":[]}]",
+  "body": "[{\"id\":\"ba7446e7-9965-4641-aca4-4a95a9f0fb66\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
   "sortOrder": 4
 }
