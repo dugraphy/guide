@@ -1,14 +1,21 @@
 import { createAdminClient } from "@/lib/supabase-admin";
 import type { UserRole } from "@/lib/auth";
 
+// Google OAuth로 먼저 가입되어 있던 유일한 계정. listUsers()가 반환하는
+// identities 배열로 "email provider 존재 여부"를 판별해봤으나, admin.createUser로
+// 만든 일반 이메일/비밀번호 계정에도 identities가 비어 있어 오탐(모든 계정이
+// OAuth 전용으로 표시됨)이 발생해 신뢰할 수 없었다. 이 서비스는 관리자가 직접
+// 계정을 만들어 전달하는 방식만 쓰고 OAuth 가입 경로 자체가 없으므로, 실제로
+// 문제가 확인된 이 계정 하나만 하드코딩해서 예외 처리한다.
+const OAUTH_ONLY_ACCOUNT_EMAIL = "zxasqw24720106@gmail.com";
+
 export interface AccountRow {
   id: string;
   email: string;
   role: UserRole;
   createdAt: string;
-  // "email" provider identity가 없으면(예: Google OAuth로만 가입) 비밀번호를
-  // 강제로 바꿔도 로그인이 계속 실패할 수 있다는 게 Supabase Auth의 알려진
-  // 동작이라, 관리자 화면에서 비밀번호 변경 대상에서 제외하는 데 쓴다.
+  // true면 비밀번호를 강제로 바꿔도 로그인이 계속 실패할 수 있다는 게 확인된
+  // 계정 — 관리자 화면에서 비밀번호 변경 대상에서 제외하는 데 쓴다.
   hasEmailIdentity: boolean;
 }
 
@@ -42,7 +49,7 @@ export async function getAccounts(): Promise<AccountRow[]> {
       email: u.email ?? "",
       role: roleById.get(u.id) ?? "member",
       createdAt: u.created_at,
-      hasEmailIdentity: (u.identities ?? []).some((identity) => identity.provider === "email"),
+      hasEmailIdentity: u.email !== OAUTH_ONLY_ACCOUNT_EMAIL,
     }))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
