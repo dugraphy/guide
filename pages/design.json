@@ -3,6 +3,6 @@
   "title": "디자인 가이드",
   "icon": "🎨",
   "description": "색상, 타이포그래피, 컴포넌트 스타일 규칙을 정리합니다.",
-  "body": "[{\"id\":\"b1\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"CSS 변수로 정의된 디자인 토큰을 사용합니다. 테스트\",\"styles\":{}}],\"children\":[]},{\"id\":\"50a2e914-bc2a-4d2a-9efd-843dcbe72958\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"테스트 가능\",\"styles\":{}}],\"children\":[]}]",
+  "body": "[{\"id\":\"b1\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"CSS 변수로 정의된 디자인 토큰을 사용합니다. 테스트\",\"styles\":{}}],\"children\":[]},{\"id\":\"50a2e914-bc2a-4d2a-9efd-843dcbe72958\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"테스트 가능\",\"styles\":{}}],\"children\":[]},{\"id\":\"0d46d390-7402-4d1d-a73f-83c51ab5fbb1\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"/\",\"styles\":{}}],\"children\":[]}]",
   "sortOrder": 0
 }
