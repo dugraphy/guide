@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Settings, Link as LinkIcon } from "lucide-react";
+import { Settings, Receipt, Link as LinkIcon } from "lucide-react";
 
 interface Props {
   email: string | null;
@@ -74,13 +74,22 @@ export default function AuthSection({ email, role }: Props) {
             </p>
             <div className="flex items-center gap-0.5">
               {role === "owner" && (
-                <Link
-                  href="/admin"
-                  title="관리자 설정"
-                  className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
-                >
-                  <Settings size={13} />
-                </Link>
+                <>
+                  <Link
+                    href="/settings/business"
+                    title="사업자정보 설정"
+                    className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
+                  >
+                    <Receipt size={13} />
+                  </Link>
+                  <Link
+                    href="/admin"
+                    title="관리자 설정"
+                    className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
+                  >
+                    <Settings size={13} />
+                  </Link>
+                </>
               )}
               <button
                 type="button"

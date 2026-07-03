@@ -5,6 +5,7 @@ import SidebarItem from "./SidebarItem";
 import SortablePagesList from "./SortablePagesList";
 import SortableDatabasesList from "./SortableDatabasesList";
 import NewPageButton from "./NewPageButton";
+import NewQuoteButton from "./NewQuoteButton";
 import AuthSection from "./AuthSection";
 
 const NAV_ITEMS = [
@@ -53,6 +54,18 @@ export default async function Sidebar() {
               </span>
             </div>
             <SortableDatabasesList databases={databases} canEdit={role === "owner"} />
+          </>
+        )}
+
+        {role === "owner" && (
+          <>
+            <div className="mt-4 mb-1 px-2">
+              <span className="text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wider">
+                견적서
+              </span>
+            </div>
+            <SidebarItem href="/quotes" label="견적서 목록" />
+            <NewQuoteButton />
           </>
         )}
       </nav>
