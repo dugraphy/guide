@@ -135,3 +135,9 @@ export async function deleteQuote(id: string): Promise<void> {
   const { error } = await supabaseAdmin.from("quotes").delete().eq("id", id);
   if (error) throw new Error(`deleteQuote(${id}): ${error.message}`);
 }
+
+export async function deleteQuotes(ids: string[]): Promise<void> {
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin.from("quotes").delete().in("id", ids);
+  if (error) throw new Error(`deleteQuotes: ${error.message}`);
+}

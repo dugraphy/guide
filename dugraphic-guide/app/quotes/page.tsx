@@ -3,9 +3,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
 import { getQuotes } from "@/lib/quotes";
 import { getBusinessProfile } from "@/lib/businessProfile";
-import { formatCurrency } from "@/lib/format";
-import { calcQuoteTotals } from "@/lib/quoteExcel";
-import QuoteListRowActions from "@/components/quotes/QuoteListRowActions";
+import QuotesTable from "@/components/quotes/QuotesTable";
 
 export default async function QuotesPage() {
   const { role } = await getSessionUser();
@@ -31,63 +29,7 @@ export default async function QuotesPage() {
       </div>
 
       <div className="flex-1 overflow-auto px-8 py-4">
-        {quotes.length === 0 ? (
-          <div className="text-center py-12 text-sm text-[var(--fg-muted)]">
-            아직 다운로드한 견적서가 없습니다.
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-[var(--border)] shadow-sm">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]">
-                    업체명
-                  </th>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]">
-                    견적유형
-                  </th>
-                  <th className="text-left px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]">
-                    견적일자
-                  </th>
-                  <th className="text-right px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]">
-                    총 청구액
-                  </th>
-                  <th className="w-44 px-3 py-2.5 text-xs font-medium text-[var(--fg-muted)] bg-[var(--bg-secondary)] border-b border-[var(--border)]" />
-                </tr>
-              </thead>
-              <tbody>
-                {quotes.map((quote, idx) => {
-                  const total = calcQuoteTotals(quote.items, quote.depositRate, quote.vatIncluded)
-                    .totalBilled;
-                  return (
-                    <tr
-                      key={quote.id}
-                      className={`transition-colors duration-150 hover:bg-[var(--hover)] ${
-                        idx % 2 === 1 ? "bg-[var(--bg-secondary)]/40" : ""
-                      }`}
-                    >
-                      <td className="px-3 py-2.5 border-b border-[var(--border)] text-[var(--fg)]">
-                        {quote.clientName}
-                      </td>
-                      <td className="px-3 py-2.5 border-b border-[var(--border)] text-[var(--fg-muted)]">
-                        {quote.quoteType}
-                      </td>
-                      <td className="px-3 py-2.5 border-b border-[var(--border)] text-[var(--fg-muted)]">
-                        {quote.quoteDate}
-                      </td>
-                      <td className="px-3 py-2.5 border-b border-[var(--border)] text-right text-[var(--fg)]">
-                        {formatCurrency(total)}
-                      </td>
-                      <td className="px-3 py-2.5 border-b border-[var(--border)]">
-                        <QuoteListRowActions quote={quote} businessProfile={businessProfile} />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <QuotesTable quotes={quotes} businessProfile={businessProfile} />
       </div>
     </div>
   );
