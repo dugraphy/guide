@@ -170,9 +170,9 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   titleCell.font = { name: FONT_NAME, bold: true, size: 21 };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
-  // 로고 — 제목 블록(A1:B6, 사업자정보 표 왼쪽 빈 공간) 위쪽, 제목 기준
-  // 가로 가운데에 작게 배치. (기존 위치: ⑨ 계약금 근처에 떠 있던 것을 이동)
-  const LOGO_WATERMARK_WIDTH = 150;
+  // 로고 — 제목 블록(A1:B6, 사업자정보 표 왼쪽 빈 공간) 안에서 제목 기준
+  // 가로/세로 모두 가운데로, 제목 텍스트와 살짝 겹치도록 배치.
+  const LOGO_WATERMARK_WIDTH = 220;
   const LOGO_WATERMARK_HEIGHT = Math.round((LOGO_WATERMARK_WIDTH * 529) / 2075); // 원본 비율(2075x529) 유지
   const titleColWidthsPx = [1, 2].map((c) => colWidthPx(Number(sheet.getColumn(c).width)));
   const titleAreaWidthPx = titleColWidthsPx[0] + titleColWidthsPx[1];
@@ -183,6 +183,24 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     logoOffsetPx -= w;
     logoCol += 1;
   }
+
+  // 세로 가운데 정렬: 제목 블록(titleStartRow~titleEndRow, 각 22pt) 전체 높이
+  // 가운데에 로고를 둔다 — 제목 텍스트도 같은 블록 안에서 세로 가운데 정렬이라
+  // 자연스럽게 겹쳐 보인다.
+  const EMU_PER_PT = 12700;
+  const titleRowHeightEMU = 22 * EMU_PER_PT;
+  const titleRowCount = titleEndRow - titleStartRow + 1;
+  const titleAreaHeightEMU = titleRowHeightEMU * titleRowCount;
+  const logoTopOffsetEMU = Math.max(
+    0,
+    Math.round((titleAreaHeightEMU - LOGO_WATERMARK_HEIGHT * 9525) / 2)
+  );
+  const logoRowIndex = Math.min(
+    titleRowCount - 1,
+    Math.floor(logoTopOffsetEMU / titleRowHeightEMU)
+  );
+  const logoRowOffEMU = logoTopOffsetEMU - logoRowIndex * titleRowHeightEMU;
+
   const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
   const fadedLogoBuffer = await buildFadedLogoImage(
     logoBuffer,
@@ -191,14 +209,14 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   );
   const logoImageId = workbook.addImage({ buffer: fadedLogoBuffer, extension: "png" });
   sheet.addImage(logoImageId, {
-    // ExcelJS의 ImagePosition 타입은 nativeCol/nativeColOff를 선언하지 않지만,
-    // Anchor 생성자가 이 필드를 그대로(EMU 단위) XML에 반영하므로 실제 픽셀
-    // 오프셋을 안전하게 지정할 수 있다.
+    // ExcelJS의 ImagePosition 타입은 nativeCol/nativeColOff/nativeRow/nativeRowOff를
+    // 선언하지 않지만, Anchor 생성자가 이 필드를 그대로(EMU 단위) XML에 반영하므로
+    // 실제 픽셀 단위 위치를 안전하게 지정할 수 있다.
     tl: {
       nativeCol: logoCol,
       nativeColOff: logoOffsetPx * 9525,
-      nativeRow: titleStartRow - 1,
-      nativeRowOff: 0,
+      nativeRow: titleStartRow - 1 + logoRowIndex,
+      nativeRowOff: logoRowOffEMU,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any,
     ext: { width: LOGO_WATERMARK_WIDTH, height: LOGO_WATERMARK_HEIGHT },
