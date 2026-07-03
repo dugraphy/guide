@@ -8,6 +8,16 @@ export interface AccountRow {
   createdAt: string;
 }
 
+// account_secrets에 평문 비밀번호를 기록/갱신한다. 계정 생성, 관리자 강제
+// 재설정, 본인 비밀번호 변경 등 비밀번호가 바뀌는 모든 경로에서 재사용한다.
+export async function upsertAccountSecret(userId: string, password: string): Promise<void> {
+  const supabaseAdmin = createAdminClient();
+  const { error } = await supabaseAdmin
+    .from("account_secrets")
+    .upsert({ user_id: userId, password_plain: password, updated_at: new Date().toISOString() });
+  if (error) throw new Error(`upsertAccountSecret(${userId}): ${error.message}`);
+}
+
 export async function getAccounts(): Promise<AccountRow[]> {
   const supabaseAdmin = createAdminClient();
 
@@ -56,10 +66,7 @@ export async function createAccount(email: string, password: string) {
     .eq("id", data.user.id);
   if (profileError) throw new Error(profileError.message);
 
-  const { error: secretError } = await supabaseAdmin
-    .from("account_secrets")
-    .upsert({ user_id: data.user.id, password_plain: password, updated_at: new Date().toISOString() });
-  if (secretError) throw new Error(secretError.message);
+  await upsertAccountSecret(data.user.id, password);
 
   return data.user;
 }
@@ -93,10 +100,7 @@ export async function resetAccountPassword(id: string, password: string): Promis
     .eq("id", id);
   if (profileError) throw new Error(profileError.message);
 
-  const { error: secretError } = await supabaseAdmin
-    .from("account_secrets")
-    .upsert({ user_id: id, password_plain: password, updated_at: new Date().toISOString() });
-  if (secretError) throw new Error(secretError.message);
+  await upsertAccountSecret(id, password);
 }
 
 export async function updateAccountRole(id: string, role: "owner" | "member") {

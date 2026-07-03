@@ -160,6 +160,18 @@ export default function AdminClient({ accounts, currentUserId }: Props) {
     if (error) {
       setPasswordError(error.message);
     } else {
+      // account_secrets에 저장된 평문 비밀번호도 같이 갱신한다. 새 비밀번호
+      // 값은 서버가 알 수 없으므로(브라우저에서 Supabase Auth로 직접 바꿈)
+      // 여기서 명시적으로 넘겨준다. 실패해도 비밀번호 자체는 이미 바뀐
+      // 상태이므로 사용자에게는 성공으로 안내하고 콘솔에만 남긴다.
+      const syncRes = await fetch("/api/account/password-secret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      if (!syncRes.ok) {
+        console.error("account_secrets 동기화 실패:", await syncRes.json().catch(() => ({})));
+      }
       setNewPassword("");
       setPasswordChanged(true);
     }

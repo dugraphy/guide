@@ -36,7 +36,11 @@ export default function ForcePasswordChangeForm() {
       return;
     }
 
-    const res = await fetch("/api/auth/complete-password-change", { method: "POST" });
+    const res = await fetch("/api/auth/complete-password-change", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "처리 중 오류가 발생했습니다.");
