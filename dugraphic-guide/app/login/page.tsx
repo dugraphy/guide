@@ -93,7 +93,16 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="mt-4 text-xs text-[var(--fg-muted)] text-center">
-          비밀번호를 잊으셨나요? 관리자에게 요청해주세요.
+          비밀번호를 잊으셨나요?{" "}
+          <a
+            href="http://pf.kakao.com/_zxlVJn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--accent)] hover:underline"
+          >
+            관리자
+          </a>
+          에게 요청해주세요.
         </p>
       </div>
     </div>
