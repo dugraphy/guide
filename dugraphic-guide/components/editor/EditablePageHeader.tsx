@@ -37,13 +37,22 @@ export default function EditablePageHeader({
   }, [isNew]);
 
   return (
-    <div className="px-8 pt-16 pb-4">
-      {onSave && (
-        <div className="flex justify-end mb-4">
+    <div className="px-8 pt-8 pb-0">
+      <div className="flex items-center justify-between mb-3">
+        <input
+          ref={inputRef}
+          type="text"
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          placeholder="제목 없음"
+          readOnly={readOnly}
+          className="flex-1 min-w-0 text-2xl font-bold text-[var(--fg)] leading-tight bg-transparent border-none outline-none placeholder:text-[var(--fg-muted)]"
+        />
+        {onSave && (
           <button
             onClick={onSave}
             disabled={saveStatus === "saving"}
-            className={`text-xs px-3 py-1.5 rounded font-medium transition-all duration-150
+            className={`shrink-0 ml-4 text-xs px-3 py-1.5 rounded font-medium transition-all duration-150
               ${
                 saveStatus === "saved"
                   ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
@@ -53,17 +62,8 @@ export default function EditablePageHeader({
           >
             {SAVE_LABEL[saveStatus]}
           </button>
-        </div>
-      )}
-      <input
-        ref={inputRef}
-        type="text"
-        value={title}
-        onChange={(e) => onTitleChange(e.target.value)}
-        placeholder="제목 없음"
-        readOnly={readOnly}
-        className="w-full text-4xl font-bold text-[var(--fg)] leading-tight mb-2 bg-transparent border-none outline-none placeholder:text-[var(--fg-muted)]"
-      />
+        )}
+      </div>
     </div>
   );
 }
