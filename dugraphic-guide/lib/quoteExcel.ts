@@ -484,7 +484,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
           : null;
       bodyLines.forEach((line) => {
         if (line.startsWith("•")) {
-          pushRun(line.replace(/^•\s*/, " • "), false, true, NOTES_BULLET_FONT_SIZE);
+          pushRun(line.replace(/^•\s*/, " •"), false, true, NOTES_BULLET_FONT_SIZE);
         } else {
           pushRun(line, true);
         }
