@@ -440,17 +440,50 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
-  // notes 원본에 이미 "1. " 같은 번호가 붙어 있으면 중복으로 번호를 매기지 않는다.
-  const alreadyNumbered = noteLines.length > 0 && /^\d+[.)]\s*/.test(noteLines[0]);
-  noteLines.forEach((line, i) => {
-    const text = alreadyNumbered ? line : `${i + 1}. ${line}`;
+
+  function addNoteLine(text: string, opts: { bold?: boolean; indent?: number } = {}) {
     const row = sheet.addRow([text]);
     sheet.mergeCells(row.number, 1, row.number, 7);
     const cell = row.getCell(1);
-    cell.font = { name: FONT_NAME, size: 11 };
-    cell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+    cell.font = { name: FONT_NAME, size: 11, bold: opts.bold ?? false };
+    cell.alignment = {
+      horizontal: "left",
+      vertical: "middle",
+      wrapText: true,
+      indent: opts.indent ?? 0,
+    };
     row.height = 20;
-  });
+  }
+
+  const hasBullets = noteLines.some((line) => line.startsWith("•"));
+  if (hasBullets) {
+    // 소제목(불릿 없는 줄)은 굵게, 그 아래 "•" 항목은 들여쓴 일반 글씨로 표시.
+    // 마지막 줄이 불릿이 아니면 별도 문단(예: 계약 확인 문구)으로 보고
+    // 위에 여백을 두어 분리한다.
+    const bodyLines = [...noteLines];
+    const closingLine =
+      bodyLines.length > 0 && !bodyLines[bodyLines.length - 1].startsWith("•")
+        ? bodyLines.pop()!
+        : null;
+    bodyLines.forEach((line) => {
+      if (line.startsWith("•")) {
+        addNoteLine(line.replace(/^•\s*/, "• "), { indent: 1 });
+      } else {
+        addNoteLine(line, { bold: true });
+      }
+    });
+    if (closingLine) {
+      sheet.addRow([]);
+      addNoteLine(closingLine);
+    }
+  } else {
+    // notes 원본에 이미 "1. " 같은 번호가 붙어 있으면 중복으로 번호를 매기지 않는다.
+    const alreadyNumbered = noteLines.length > 0 && /^\d+[.)]\s*/.test(noteLines[0]);
+    noteLines.forEach((line, i) => {
+      const text = alreadyNumbered ? line : `${i + 1}. ${line}`;
+      addNoteLine(text);
+    });
+  }
 
   return workbook;
 }
