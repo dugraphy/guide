@@ -14,11 +14,24 @@
   padding: 3px 12px;
 }
 
-/* 조항 제목(환불정책 템플릿의 heading level 3) — 왼쪽 컬러 바 + 넉넉한 간격 */
-.bn-editor [data-content-type="heading"][data-level="3"] {
+/* 조항 제목(환불정책 템플릿의 heading level 3) — 왼쪽 컬러 바 + 넉넉한 간격.
+   회색 배경 바(가격정책 템플릿의 heading, 아래 규칙)에는 적용하지 않는다 —
+   왼쪽 바 + 회색 박스가 같이 있으면 스타일이 겹쳐 보인다. */
+.bn-editor [data-content-type="heading"][data-level="3"]:not([data-background-color="gray"]) {
   border-left: 3px solid var(--accent);
   padding-left: 10px;
   margin-top: 20px;
+}
+
+/* 회색 배경 바 소제목(가격정책 템플릿) — BlockNote 기본값은 heading에 무조건
+   padding-top: 18px를 주는데, 폰트 크기(heading level)와 무관한 고정값이라
+   level 3처럼 작은 헤딩에서는 배경 박스 위아래 여백이 텍스트에 비해 과하게
+   남는다. 배경색이 지정된 헤딩만 위아래 padding을 좁혀 박스 높이가 텍스트에
+   자연스럽게 맞도록 한다. */
+.bn-editor [data-content-type="heading"][data-background-color="gray"] {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  margin-top: 12px;
 }
 
 /* 표: 헤더 행 배경, 짝수 행 zebra striping, 넉넉한 padding, 둥근 모서리 */
