@@ -133,20 +133,42 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   });
   const titleEndRow = sheet.rowCount;
 
-  // 로고 — "견적서" 제목 위쪽에 작게 삽입 (원본 비율 유지, 높이 약 60px 기준)
+  // 로고 — "견적서" 제목 위쪽, 제목 칸(A:B열) 가운데에 작게 삽입 (원본 비율 유지)
   const logoBuffer = await fetch("/img/logo.png").then((res) => res.arrayBuffer());
   const logoImageId = workbook.addImage({ buffer: logoBuffer, extension: "png" });
-  const LOGO_HEIGHT = 60;
+  const LOGO_HEIGHT = 30;
   const LOGO_WIDTH = Math.round((LOGO_HEIGHT * 2075) / 529); // 원본 로고 비율(2075x529) 유지
+
+  // 엑셀 열 너비(문자 단위) → 픽셀 근사 변환(Calibri 11 기준): px ≈ width*7 + 5
+  const colWidthPx = (width: number) => Math.round(width * 7 + 5);
+  const EMU_PER_PX = 9525;
+  const titleColWidths = [1, 2].map((c) => colWidthPx(Number(sheet.getColumn(c).width)));
+  const titleAreaWidthPx = titleColWidths[0] + titleColWidths[1];
+  let offsetPx = Math.max(0, Math.round((titleAreaWidthPx - LOGO_WIDTH) / 2));
+  let logoCol = 0;
+  for (const w of titleColWidths) {
+    if (offsetPx < w) break;
+    offsetPx -= w;
+    logoCol += 1;
+  }
   sheet.addImage(logoImageId, {
-    tl: { col: 0, row: titleStartRow - 1 },
+    // ExcelJS의 ImagePosition 타입은 nativeCol/nativeColOff를 선언하지 않지만,
+    // Anchor 생성자가 이 필드를 그대로(EMU 단위) XML에 반영하므로 실제 픽셀
+    // 오프셋을 안전하게 지정할 수 있다.
+    tl: {
+      nativeCol: logoCol,
+      nativeColOff: offsetPx * EMU_PER_PX,
+      nativeRow: titleStartRow - 1,
+      nativeRowOff: 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any,
     ext: { width: LOGO_WIDTH, height: LOGO_HEIGHT },
   });
 
   sheet.mergeCells(titleStartRow + 1, 1, titleEndRow, 2);
   const titleCell = sheet.getCell(titleStartRow + 1, 1);
   titleCell.value = "견적서";
-  titleCell.font = { name: FONT_NAME, bold: true, size: 26 };
+  titleCell.font = { name: FONT_NAME, bold: true, size: 21 };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
 
   sheet.addRow([]);
