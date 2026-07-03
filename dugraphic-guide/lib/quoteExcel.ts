@@ -178,13 +178,16 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     ext: { width: LOGO_WIDTH, height: LOGO_HEIGHT },
   });
 
-  // 제목 — 로고와 같은 6행 범위(cols1-2) 안에서, 오른쪽 정렬로 배치해
-  // 왼쪽의 로고와 자연스럽게 여백을 두고 나란히 놓이게 한다.
+  // 제목 — 로고와 같은 6행 범위(cols1-2) 안에서, 로고 폭만큼 들여쓰기(indent)해
+  // 로고 바로 옆에 붙어 보이도록 좁은 간격만 남긴다. (오른쪽 정렬은 셀 전체
+  // 폭 기준이라 로고와 제목 사이가 지나치게 벌어져 보여 좌측 정렬+indent로 변경)
   sheet.mergeCells(titleStartRow, 1, titleEndRow, 2);
   const titleCell = sheet.getCell(titleStartRow, 1);
   titleCell.value = "견적서";
   titleCell.font = { name: FONT_NAME, bold: true, size: 21 };
-  titleCell.alignment = { horizontal: "right", vertical: "middle" };
+  // indent 1레벨 ≈ 3자 폭(약 21px). 로고 폭(118px) + 약간의 여백만큼만 들여쓴다.
+  const titleIndentLevel = Math.round((LOGO_WIDTH + 8) / 21);
+  titleCell.alignment = { horizontal: "left", vertical: "middle", indent: titleIndentLevel };
 
   sheet.addRow([]);
 
