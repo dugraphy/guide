@@ -135,18 +135,21 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const sheet = workbook.addWorksheet("견적서");
 
   // 인쇄 시 내용이 잘리지 않고 세로 1페이지에 맞춰 자동 축소되도록 설정.
+  // ExcelJS의 margins 단위는 inch이므로 cm 값을 인치로 환산해서 넣는다.
+  const CM_TO_INCH = 1 / 2.54;
   sheet.pageSetup = {
+    paperSize: 9, // A4
     orientation: "portrait",
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 1,
     margins: {
-      top: 0.75,
-      bottom: 0.75,
-      left: 0.7,
-      right: 0.7,
-      header: 0.3,
-      footer: 0.3,
+      top: 1.91 * CM_TO_INCH,
+      bottom: 1.91 * CM_TO_INCH,
+      left: 0.64 * CM_TO_INCH,
+      right: 0.64 * CM_TO_INCH,
+      header: 0.76 * CM_TO_INCH,
+      footer: 0.76 * CM_TO_INCH,
     },
   };
 
