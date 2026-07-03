@@ -176,7 +176,19 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const LOGO_WATERMARK_HEIGHT = Math.round((LOGO_WATERMARK_WIDTH * 529) / 2075); // 원본 비율(2075x529) 유지
   const titleColWidthsPx = [1, 2].map((c) => colWidthPx(Number(sheet.getColumn(c).width)));
   const titleAreaWidthPx = titleColWidthsPx[0] + titleColWidthsPx[1];
-  let logoOffsetPx = Math.max(0, Math.round((titleAreaWidthPx - LOGO_WATERMARK_WIDTH) / 2));
+  // logo.png는 "DU 아이콘 + The Designed Unseen Graphic Studio." 태그라인이 합쳐진
+  // 가로로 긴 워드마크라, 진한 DU 아이콘이 이미지 왼쪽 약 절반에 몰려있고 오른쪽은
+  // 옅은 텍스트다. 바운딩 박스 기준으로만 중앙 정렬하면 아이콘의 시각적 무게중심이
+  // 왼쪽으로 쏠려 보이므로, 아이콘 쪽 무게중심(이미지 폭의 약 26% 지점)을 제목
+  // 블록 중앙에 맞추도록 우측으로 보정한다.
+  const LOGO_VISUAL_CENTER_FRACTION = 0.26;
+  // 우측 보정이 과하면 이미지 오른쪽 끝이 제목 영역을 벗어나 사업자정보 표
+  // 쪽으로 넘어가므로, 제목 영역 폭을 넘지 않도록 상한을 둔다.
+  const maxLogoOffsetPx = Math.max(0, titleAreaWidthPx - LOGO_WATERMARK_WIDTH);
+  let logoOffsetPx = Math.min(
+    maxLogoOffsetPx,
+    Math.max(0, Math.round(titleAreaWidthPx / 2 - LOGO_VISUAL_CENTER_FRACTION * LOGO_WATERMARK_WIDTH))
+  );
   let logoCol = 0;
   for (const w of titleColWidthsPx) {
     if (logoOffsetPx < w) break;
