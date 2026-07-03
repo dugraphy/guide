@@ -28,10 +28,12 @@
    --bn-colors-* 같은 CSS 변수가 아니라 [data-background-color=gray]
    선택자에 hex(#ebeced)를 직접 하드코딩해서 칠하므로, 같은 선택자를
    .bn-editor로 감싸 specificity를 높여 투명으로 덮어쓴다. */
-.bn-editor .bn-block:has(> .bn-block-content[data-background-color="gray"]) {
+.bn-editor .bn-block[data-background-color="gray"]{
   background-color: transparent;
 }
-
+.bn-editor .bn-block .bn-block-content[data-background-color="gray"] {
+  background-color: transparent;
+}
 /* 표: 헤더 행 배경, 짝수 행 zebra striping, 넉넉한 padding, 둥근 모서리 */
 .bn-editor [data-content-type="table"] table {
   border-collapse: separate;
