@@ -1,7 +1,8 @@
 {
-  "body": "[{\"id\":\"c1\",\"type\":\"paragraph\",\"props\":{\"textColor\":\"default\",\"backgroundColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[{\"type\":\"text\",\"text\":\"GitHub API 연동 ✅  블록 에디터 ✅  Supabase 연동 ✅\",\"styles\":{}}],\"children\":[]}]",
+  "slug": "todos",
+  "title": "할 일 목록",
   "icon": "✅",
   "description": "개발 로드맵과 남은 작업을 추적합니다.",
-  "title": "할 일 목록",
-  "slug": "todos"
+  "body": "[{\"id\":\"c9e63248-d7f2-417e-88d1-0931024e80a5\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
+  "sortOrder": 3
 }
