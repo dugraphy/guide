@@ -134,7 +134,10 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const workbook = new ExcelJSRuntime.Workbook();
   const sheet = workbook.addWorksheet("견적서");
 
-  // 인쇄 시 내용이 잘리지 않고 세로 1페이지에 맞춰 자동 축소되도록 설정.
+  // 가로는 항상 A4 세로 폭 1페이지에 맞추되, 세로는 강제로 축소하지 않는다.
+  // fitToHeight를 1로 고정하면 안내사항이 길어질수록 인쇄 스케일이 과도하게
+  // 축소되어 글자가 지나치게 작아지므로, 세로는 0(제한 없음)으로 두어 내용이
+  // 많으면 자연스럽게 다음 페이지로 넘어가게 한다.
   // ExcelJS의 margins 단위는 inch이므로 cm 값을 인치로 환산해서 넣는다.
   const CM_TO_INCH = 1 / 2.54;
   sheet.pageSetup = {
@@ -142,7 +145,7 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     orientation: "portrait",
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 1,
+    fitToHeight: 0,
     margins: {
       top: 1.91 * CM_TO_INCH,
       bottom: 1.91 * CM_TO_INCH,
