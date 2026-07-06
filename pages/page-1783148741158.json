@@ -3,6 +3,6 @@
   "title": "가격정책",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"6474a659-4c97-40f0-a7a2-0f34254c97eb\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"bd59abbe-b4a7-4571-aebc-be1676f9ee86\",\"type\":\"tabGroup\",\"props\":{\"tabs\":\"[{\\\"title\\\":\\\"탭 1\\\",\\\"content\\\":[{\\\"type\\\":\\\"paragraph\\\",\\\"content\\\":\\\"내용을 입력하세요\\\"}]},{\\\"title\\\":\\\"탭 2\\\",\\\"content\\\":[{\\\"type\\\":\\\"paragraph\\\",\\\"content\\\":\\\"내용을 입력하세요\\\"}]},{\\\"title\\\":\\\"탭 3\\\",\\\"content\\\":[]},{\\\"title\\\":\\\"탭 4\\\",\\\"content\\\":[{\\\"id\\\":\\\"fa29fd00-bf2e-4894-9644-08eeebad8bd0\\\",\\\"type\\\":\\\"paragraph\\\",\\\"props\\\":{\\\"backgroundColor\\\":\\\"default\\\",\\\"textColor\\\":\\\"default\\\",\\\"textAlignment\\\":\\\"left\\\"},\\\"content\\\":[{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"/\\\",\\\"styles\\\":{}}],\\\"children\\\":[]}]}]\",\"activeTab\":3},\"children\":[]}]",
+  "body": "[{\"id\":\"a3016f76-d8fe-4129-acea-c881fcea2252\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
   "sortOrder": 2
 }
