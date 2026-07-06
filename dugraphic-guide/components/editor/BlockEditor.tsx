@@ -12,6 +12,7 @@ import { pageLinkSpec } from "./blocks/PageLinkBlock";
 import { todoSpec } from "./blocks/TodoBlock";
 import { pricingCardsSpec } from "./blocks/PricingCardsBlock";
 import { calloutBoxSpec } from "./blocks/CalloutBoxBlock";
+import { tabGroupSpec } from "./blocks/TabGroupBlock";
 import type { TemplateRow } from "@/lib/templates";
 
 // Custom schema — defined at module level so the reference stays stable across renders
@@ -22,6 +23,7 @@ const schema = BlockNoteSchema.create({
     todo: todoSpec,
     pricingCards: pricingCardsSpec,
     calloutBox: calloutBoxSpec,
+    tabGroup: tabGroupSpec,
   },
 });
 
@@ -130,6 +132,16 @@ export default function BlockEditor({ page, onBodyChange, editable = true }: Pro
                 );
               },
             };
+            const tabGroupItem = {
+              title: "탭",
+              group: "기본",
+              icon: <span style={{ fontSize: "1.1em" }}>📑</span>,
+              onItemClick: () => {
+                const pos = editor.getTextCursorPosition();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor.insertBlocks as any)([{ type: "tabGroup" }], pos.block, "after");
+              },
+            };
             const templateItems = templates.map((tpl) => ({
               title: tpl.name,
               group: "템플릿",
@@ -140,7 +152,7 @@ export default function BlockEditor({ page, onBodyChange, editable = true }: Pro
                 (editor.insertBlocks as any)(tpl.blocks, pos.block, "after");
               },
             }));
-            const all = [...defaults, todoItem, pageLinkItem, ...templateItems];
+            const all = [...defaults, todoItem, pageLinkItem, tabGroupItem, ...templateItems];
             return query
               ? all.filter((item) =>
                   item.title.toLowerCase().includes(query.toLowerCase())
