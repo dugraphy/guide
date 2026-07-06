@@ -3,6 +3,6 @@
   "title": "가격정책",
   "icon": "📄",
   "description": "",
-  "body": "[{\"id\":\"a3016f76-d8fe-4129-acea-c881fcea2252\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]}]",
+  "body": "[{\"id\":\"a3016f76-d8fe-4129-acea-c881fcea2252\",\"type\":\"paragraph\",\"props\":{\"backgroundColor\":\"default\",\"textColor\":\"default\",\"textAlignment\":\"left\"},\"content\":[],\"children\":[]},{\"id\":\"d8aa83e5-721c-41f7-a5fe-ffe9fc6cd220\",\"type\":\"tabGroup\",\"props\":{\"tabs\":\"[{\\\"title\\\":\\\"탭 1\\\",\\\"content\\\":[{\\\"type\\\":\\\"paragraph\\\",\\\"content\\\":\\\"내용을 입력하세요\\\"}]},{\\\"title\\\":\\\"탭 2\\\",\\\"content\\\":[{\\\"type\\\":\\\"paragraph\\\",\\\"content\\\":\\\"내용을 입력하세요\\\"}]}]\",\"activeTab\":0},\"children\":[]}]",
   "sortOrder": 2
 }
