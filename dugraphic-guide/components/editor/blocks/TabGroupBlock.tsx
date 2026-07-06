@@ -56,12 +56,21 @@ function TabPane({
       // 버블링되어 부모의 "/" 슬래시 메뉴나 키맵과 충돌하지 않도록 막는다.
       // (content:"none" 블록 안의 실제 contentEditable 영역은 BlockNote
       // 노드뷰의 기본 stopEvent로도 걸러지지만, 이중 안전장치로 둔다.)
+      //
+      // mousemove/mouseup도 반드시 막아야 한다 — BlockNote의 TableHandles
+      // 확장은 pmView.dom(부모 에디터 루트)에 직접 mousemove 리스너를 달고,
+      // 이벤트가 발생한 DOM이 부모 에디터의 표 셀인지를 data-id 기반으로
+      // 역추적한다. 여기(서브 에디터)의 표 DOM은 부모 view.dom의 자손이라
+      // 막지 않으면 그 리스너까지 버블링되고, 서브 에디터 내부의 block id를
+      // 부모 문서에서 찾다가 "Block with ID ... not found" 예외가 난다.
       onKeyDown={(e) => e.stopPropagation()}
       onKeyUp={(e) => e.stopPropagation()}
       onBeforeInput={(e) => e.stopPropagation()}
       onCompositionStart={(e) => e.stopPropagation()}
       onCompositionEnd={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
     >
       <BlockNoteView
         editor={subEditor}
