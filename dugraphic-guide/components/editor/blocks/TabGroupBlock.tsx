@@ -123,13 +123,25 @@ function TabGroupRenderer({
           return (
             <div key={i} className="group relative flex shrink-0 items-center">
               {isActive && editor.isEditable ? (
-                <input
-                  value={tab.title}
-                  onChange={(e) => renameTab(i, e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className="min-w-[3ch] border-b-2 border-[var(--accent)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--accent)] outline-none"
-                  style={{ width: `${Math.max(tab.title.length, 2) + 1}ch` }}
-                />
+                // 그리드 두 칸을 같은 셀(col/row 1)에 겹쳐서, 보이지 않는
+                // span이 실제 렌더링 폭(한글 등 non-Latin 글자 포함)만큼
+                // 트랙 크기를 정하고 input이 그 폭에 꽉 차게 늘어나도록 한다.
+                // "ch" 단위는 반각 기준이라 한글 라벨에서 폭이 부족해 잘렸었다.
+                <div className="grid">
+                  <span
+                    aria-hidden
+                    className="invisible col-start-1 row-start-1 whitespace-nowrap px-4 py-2 text-sm font-medium"
+                  >
+                    {tab.title || " "}
+                  </span>
+                  <input
+                    value={tab.title}
+                    onChange={(e) => renameTab(i, e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    size={1}
+                    className="col-start-1 row-start-1 min-w-0 w-full border-b-2 border-[var(--accent)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--accent)] outline-none"
+                  />
+                </div>
               ) : (
                 <button
                   type="button"
