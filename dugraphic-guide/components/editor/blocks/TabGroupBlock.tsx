@@ -124,6 +124,75 @@ const TabPane = forwardRef<
     };
   }, [subEditor]);
 
+  // TEMP DIAGNOSTIC — 탭 안 표 셀에서 간헐적으로 한글 등 조합형 입력이 깨지는(자소가
+  // 확정되지 않고 그대로 쌓이거나, 백스페이스가 화면에 반영 안 되는) 버그를 재현하기 위한
+  // 임시 진단 로그. compositionstart/update/end, beforeinput/input을 전부 기록하고,
+  // compositionend 직후 "화면(DOM)에 보이는 텍스트"와 "ProseMirror가 실제로 들고 있는
+  // 문서 텍스트"를 비교해 어긋나면 즉시 표시한다 — 렌더링이 실제 상태보다 뒤처지는지
+  // 여부를 직접 확인하기 위함. 원인 확정 후 dragDebugLog.ts와 함께 제거할 것.
+  useEffect(() => {
+    const view = subEditor.prosemirrorView;
+    if (!view) return;
+
+    const describeTarget = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) {
+        return "target=?";
+      }
+      const cell = target.closest("td, th");
+      const block = target.closest('[data-node-type="blockContainer"]');
+      return `탭=${label} cell=${cell ? "예" : "아니오"} block=${block?.getAttribute("data-id") ?? "?"}`;
+    };
+
+    const onCompositionStart = (e: CompositionEvent) => {
+      dndLog("ime-compositionstart", `${describeTarget(e.target)} data="${e.data}"`);
+    };
+    const onCompositionUpdate = (e: CompositionEvent) => {
+      dndLog("ime-compositionupdate", `${describeTarget(e.target)} data="${e.data}"`);
+    };
+    const onCompositionEnd = (e: CompositionEvent) => {
+      dndLog("ime-compositionend", `${describeTarget(e.target)} data="${e.data}"`);
+      // compositionend가 브라우저의 실제 DOM 반영보다 먼저 fire할 수 있으므로, 다음
+      // 마이크로태스크로 미뤄서 비교한다.
+      queueMicrotask(() => {
+        try {
+          const target = e.target;
+          if (!(target instanceof Node)) {
+            return;
+          }
+          const cellEl = (target instanceof Element ? target : target.parentElement)?.closest("td, th, p, [data-node-type='blockContent']");
+          const domText = (cellEl ?? target).textContent ?? "";
+          const pos = view.posAtDOM(target, 0);
+          const $pos = view.state.doc.resolve(pos);
+          const pmText = $pos.parent.textContent;
+          if (domText !== pmText) {
+            dndLog("ime-desync", `${describeTarget(e.target)} DOM="${domText}" PM="${pmText}"`);
+          }
+        } catch {
+          // posAtDOM은 분리되었거나 애매한 노드에 대해 던질 수 있다 — 진단 목적상 무시.
+        }
+      });
+    };
+    const onBeforeInput = (e: InputEvent) => {
+      dndLog("beforeinput", `${describeTarget(e.target)} inputType=${e.inputType} data="${e.data}" isComposing=${e.isComposing}`);
+    };
+    const onInput = (e: InputEvent) => {
+      dndLog("input", `${describeTarget(e.target)} inputType=${e.inputType} data="${e.data}" isComposing=${e.isComposing}`);
+    };
+
+    view.dom.addEventListener("compositionstart", onCompositionStart);
+    view.dom.addEventListener("compositionupdate", onCompositionUpdate);
+    view.dom.addEventListener("compositionend", onCompositionEnd);
+    view.dom.addEventListener("beforeinput", onBeforeInput as EventListener);
+    view.dom.addEventListener("input", onInput as EventListener);
+    return () => {
+      view.dom.removeEventListener("compositionstart", onCompositionStart);
+      view.dom.removeEventListener("compositionupdate", onCompositionUpdate);
+      view.dom.removeEventListener("compositionend", onCompositionEnd);
+      view.dom.removeEventListener("beforeinput", onBeforeInput as EventListener);
+      view.dom.removeEventListener("input", onInput as EventListener);
+    };
+  }, [subEditor, label]);
+
   // 탭 안 표/블록을 밖(메인 에디터·다른 탭)으로 드래그하기 위한 자체 드래그 핸들.
   //
   // BlockNote 코어의 SideMenu(hover 시 왼쪽에 뜨는 grip 핸들)는 여러 에디터가 같은 페이지에
@@ -315,10 +384,19 @@ const TabPane = forwardRef<
       // 버블링되어 부모의 "/" 슬래시 메뉴나 키맵과 충돌하지 않도록 막는다.
       // (content:"none" 블록 안의 실제 contentEditable 영역은 BlockNote
       // 노드뷰의 기본 stopEvent로도 걸러지지만, 이중 안전장치로 둔다.)
+      //
+      // ⚠️ onCompositionUpdate가 예전엔 빠져 있었다 — 한글 등 조합형 입력은
+      // compositionstart 한 번, 그 뒤 글자마다 compositionupdate가 반복해서 발생하고
+      // compositionend로 확정되는데, start/end만 막고 update를 그대로 버블링시키면
+      // 조합이 진행되는 동안 이 이벤트가 계속 부모 에디터(React 트리 전체)로 새어나가
+      // 부모 쪽에서 이 조합 세션을 엉뚱하게 관찰/개입할 여지가 생긴다. 특히 빠른 타이핑
+      // 중 backspace(keydown, 이건 이미 막고 있었음)와 compositionupdate가 겹치는
+      // 타이밍에 조합이 확정되지 않고 자소가 그대로 쌓이는 증상과 일치해 함께 막는다.
       onKeyDown={(e) => e.stopPropagation()}
       onKeyUp={(e) => e.stopPropagation()}
       onBeforeInput={(e) => e.stopPropagation()}
       onCompositionStart={(e) => e.stopPropagation()}
+      onCompositionUpdate={(e) => e.stopPropagation()}
       onCompositionEnd={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
       onMouseMove={forwardMouseEvent}
