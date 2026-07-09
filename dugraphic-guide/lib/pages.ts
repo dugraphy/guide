@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { supabase, type PageRow } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { octokit, OWNER, REPO, PAGES_DIR } from "@/lib/github";
@@ -139,9 +140,7 @@ export async function deletePage(slug: string): Promise<void> {
   }
 }
 
-export async function upsertPage(
-  page: PageData
-): Promise<{ sha: string | undefined; path: string }> {
+export async function upsertPage(page: PageData): Promise<{ path: string }> {
   const path = `${PAGES_DIR}/${page.slug}.json`;
 
   // 1. Supabase upsert (primary store) — service role, see reorderPages 주석
@@ -151,8 +150,11 @@ export async function upsertPage(
     .upsert(pageToRow(page), { onConflict: "slug" });
   if (error) throw new Error(`upsertPage(${page.slug}): ${error.message}`);
 
-  // 2. GitHub 백업 (secondary — 실패 시 로그만 남김)
-  const sha = await backupToGitHub(page);
+  // 2. GitHub 백업 (secondary — 실패 시 로그만 남김). 큰 표를 편집할 때는
+  // 자동저장이 몇 초마다 반복되는데, 그때마다 GitHub API 왕복(수백ms~)까지
+  // 응답을 막고 기다리면 저장 주기가 그만큼 늘어진다. 클라이언트는 이
+  // 반환값(sha/path)을 쓰지 않으므로 응답 이후로 미뤄도 안전하다.
+  after(() => backupToGitHub(page));
 
-  return { sha, path };
+  return { path };
 }

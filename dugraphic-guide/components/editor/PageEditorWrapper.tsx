@@ -27,8 +27,10 @@ export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }:
   const [page, setPage] = useState(initialPage);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  const pageRef = useRef(page);
-  pageRef.current = page;
+  // 저장 payload의 단일 소스. title/body 변경 핸들러가 각각 직접 갱신한다
+  // (렌더마다 `pageRef.current = page`로 동기화하면, body를 ref에만 반영해
+  // 리렌더를 건너뛰는 아래 최적화가 title 변경 시 stale body로 덮어써진다).
+  const pageRef = useRef(initialPage);
 
   const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bodyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,15 +77,21 @@ export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }:
   const handleTitleChange = useCallback(
     (title: string) => {
       setPage((prev) => ({ ...prev, title }));
+      pageRef.current = { ...pageRef.current, title };
       if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
       titleTimerRef.current = setTimeout(performSave, 1500);
     },
     [performSave]
   );
 
+  // 셀 하나만 고쳐도 body는 300ms마다 바뀔 수 있다. 여기서 setPage로 React
+  // state를 갱신하면 페이지 전체가 리렌더되고, 그때마다 BlockEditor에 새
+  // page prop이 흘러들어가 큰 문서를 다시 파싱하는 낭비가 생긴다(테이블이
+  // 클수록 체감 타이핑 지연으로 이어짐). body는 화면에 반영할 필요가 없는
+  // "저장용 스냅샷"일 뿐이므로 리렌더를 유발하지 않는 ref에만 담아둔다.
   const handleBodyChange = useCallback(
     (body: string) => {
-      setPage((prev) => ({ ...prev, body }));
+      pageRef.current = { ...pageRef.current, body };
       if (bodyTimerRef.current) clearTimeout(bodyTimerRef.current);
       bodyTimerRef.current = setTimeout(performSave, 2500);
     },
@@ -102,7 +110,7 @@ export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }:
       />
       <div className="px-8 py-4">
         <div className="border-t border-[var(--border)] mb-4" />
-        <BlockEditor page={page} onBodyChange={handleBodyChange} editable={canEdit} />
+        <BlockEditor page={initialPage} onBodyChange={handleBodyChange} editable={canEdit} />
       </div>
     </>
   );

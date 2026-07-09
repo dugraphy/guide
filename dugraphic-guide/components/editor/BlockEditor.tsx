@@ -4,7 +4,7 @@ import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuI
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import "./blocknote-overrides.css";
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState, memo } from "react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import type { BlockNoteEditor } from "@blocknote/core";
 import type { PageData } from "@/lib/data";
@@ -51,15 +51,20 @@ interface Props {
   editable?: boolean;
 }
 
-export default function BlockEditor({ page, onBodyChange, editable = true }: Props) {
+function BlockEditor({ page, onBodyChange, editable = true }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
+
+  // useCreateBlockNote는 initialContent를 최초 마운트 시 1회만 사용하지만(내부적으로
+  // 빈 deps의 useMemo), 인자 표현식 자체는 리렌더마다 평가된다. page.body를 그대로
+  // 넘기면 부모가 리렌더될 때마다 큰 문서 전체를 JSON.parse하는 비용이 매번 낭비되므로
+  // 최초 값만 한 번 계산해 재사용한다.
+  const [initialContent] = useState(() => parseInitialContent(page.body));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editor = useCreateBlockNote({
     schema,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    initialContent: parseInitialContent(page.body) as any,
+    initialContent: initialContent as any, // eslint-disable-line @typescript-eslint/no-explicit-any
   });
 
   useEffect(() => {
@@ -164,3 +169,9 @@ export default function BlockEditor({ page, onBodyChange, editable = true }: Pro
     </BlockNoteView>
   );
 }
+
+// 부모(PageEditorWrapper)는 저장 상태·제목 변경 등으로 자주 리렌더되는데,
+// 그때마다 이 무거운 에디터(특히 큰 테이블)까지 다시 렌더링될 필요는 없다.
+// page.body는 최초 마운트 이후로는 이 컴포넌트 내부에서 쓰이지 않으므로
+// 얕은 비교로 건너뛰어도 안전하다.
+export default memo(BlockEditor);
