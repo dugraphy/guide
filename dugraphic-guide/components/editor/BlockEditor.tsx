@@ -4,9 +4,8 @@ import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuI
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import "./blocknote-overrides.css";
-import { useRef, useCallback, useEffect, useState, memo } from "react";
+import { useRef, useEffect, useState, memo } from "react";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
-import type { BlockNoteEditor } from "@blocknote/core";
 import type { PageData } from "@/lib/data";
 import { pageLinkSpec } from "./blocks/PageLinkBlock";
 import { todoSpec } from "./blocks/TodoBlock";
@@ -14,6 +13,7 @@ import { pricingCardsSpec } from "./blocks/PricingCardsBlock";
 import { calloutBoxSpec } from "./blocks/CalloutBoxBlock";
 import { tabGroupSpec } from "./blocks/TabGroupBlock";
 import type { TemplateRow } from "@/lib/templates";
+import { TabSyncContext, type TabFlushRegistry } from "./tabSyncContext";
 
 // Custom schema — defined at module level so the reference stays stable across renders
 const schema = BlockNoteSchema.create({
@@ -47,12 +47,16 @@ function parseInitialContent(body: string) {
 
 interface Props {
   page: PageData;
-  onBodyChange: (body: string) => void;
   editable?: boolean;
+  // 자동저장이 없으므로 타이핑 중에는 아무것도 호출되지 않는다. 저장
+  // 버튼을 눌렀을 때만 이 함수(현재 문서 전체를 JSON 문자열로 반환)를
+  // 얻어 쓸 수 있도록, 마운트 시 부모에게 딱 한 번 등록해준다.
+  // (BlockEditor는 next/dynamic으로 로드되어 ref를 안정적으로 통과시키기
+  // 어려우므로 콜백 prop으로 노출한다.)
+  registerGetBody?: (getBody: () => string) => void;
 }
 
-function BlockEditor({ page, onBodyChange, editable = true }: Props) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+function BlockEditor({ page, editable = true, registerGetBody }: Props) {
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
 
   // useCreateBlockNote는 initialContent를 최초 마운트 시 1회만 사용하지만(내부적으로
@@ -67,6 +71,21 @@ function BlockEditor({ page, onBodyChange, editable = true }: Props) {
     initialContent: initialContent as any, // eslint-disable-line @typescript-eslint/no-explicit-any
   });
 
+  // tabGroup 서브 에디터들의 "저장 시점에 부모 블록 prop과 동기화" 콜백을
+  // 모아두는 레지스트리. TabGroupBlock이 마운트될 때 여기에 자신을 등록한다.
+  const flushRegistryRef = useRef<TabFlushRegistry>(new Map());
+
+  useEffect(() => {
+    if (!registerGetBody) return;
+    registerGetBody(() => {
+      // 활성 탭 서브 에디터들의 최신 내용을 각자의 tabGroup 블록 prop에
+      // 반영한 다음, 문서 전체를 읽는다 — 이 두 단계 모두 저장 버튼을
+      // 눌렀을 때 딱 한 번만 실행된다.
+      flushRegistryRef.current.forEach((flush) => flush());
+      return JSON.stringify(editor.document);
+    });
+  }, [registerGetBody, editor]);
+
   useEffect(() => {
     if (!editable) return;
     fetch("/api/templates")
@@ -75,25 +94,14 @@ function BlockEditor({ page, onBodyChange, editable = true }: Props) {
       .catch(() => {});
   }, [editable]);
 
-  const handleChange = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (ed: BlockNoteEditor<any, any, any>) => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        onBodyChange(JSON.stringify(ed.document));
-      }, 300);
-    },
-    [onBodyChange]
-  );
-
   return (
-    <BlockNoteView
-      editor={editor}
-      onChange={handleChange}
-      theme="light"
-      slashMenu={false}
-      editable={editable}
-    >
+    <TabSyncContext.Provider value={flushRegistryRef}>
+      <BlockNoteView
+        editor={editor}
+        theme="light"
+        slashMenu={false}
+        editable={editable}
+      >
       {editable && (
         <SuggestionMenuController
           triggerCharacter="/"
@@ -167,6 +175,7 @@ function BlockEditor({ page, onBodyChange, editable = true }: Props) {
         />
       )}
     </BlockNoteView>
+    </TabSyncContext.Provider>
   );
 }
 

@@ -22,86 +22,59 @@ interface Props {
   canEdit: boolean;
 }
 
+// 자동저장 없음: 서버로 나가는 요청은 오직 저장 버튼 클릭 한 곳뿐이다.
+// 타이핑 중에는 BlockEditor·TabGroupBlock 내부 상태만 바뀌고, 이 컴포넌트
+// 조차 리렌더되지 않는다. 저장 버튼을 누르지 않고 새로고침/이동하면
+// 변경사항이 사라지는 것은 의도된 동작이다.
 export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }: Props) {
   const router = useRouter();
-  const [page, setPage] = useState(initialPage);
+  const [title, setTitle] = useState(initialPage.title);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
 
-  // 저장 payload의 단일 소스. title/body 변경 핸들러가 각각 직접 갱신한다
-  // (렌더마다 `pageRef.current = page`로 동기화하면, body를 ref에만 반영해
-  // 리렌더를 건너뛰는 아래 최적화가 title 변경 시 stale body로 덮어써진다).
-  const pageRef = useRef(initialPage);
-
-  const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const bodyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleRef = useRef(initialPage.title);
   const savedResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const performSave = useCallback(
-    async (optimistic = false) => {
-      if (!canEdit) return;
-      // 저장 버튼 클릭 시: 응답을 기다리지 않고 "저장됨"부터 즉시 보여준다.
-      if (optimistic) {
-        setSaveStatus("saved");
-        if (savedResetTimerRef.current) clearTimeout(savedResetTimerRef.current);
-        savedResetTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
-      } else {
-        setSaveStatus("saving");
-      }
-      try {
-        const res = await fetch("/api/pages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(pageRef.current),
-        });
-        if (!res.ok) throw new Error("save failed");
-        if (!optimistic) {
-          setSaveStatus("saved");
-          if (savedResetTimerRef.current) clearTimeout(savedResetTimerRef.current);
-          savedResetTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
-        }
-        router.refresh();
-      } catch {
-        setSaveStatus("idle");
-        showErrorToast("저장에 실패했습니다. 다시 시도해주세요.");
-      }
-    },
-    [router, canEdit]
-  );
+  // BlockEditor가 마운트 시 이 ref에 "지금 문서를 JSON으로 돌려주는 함수"를
+  // 등록해준다. 저장 버튼을 누른 순간에만 호출해 최신 body를 얻는다.
+  const getBodyRef = useRef<() => string>(() => initialPage.body);
+  const registerGetBody = useCallback((getBody: () => string) => {
+    getBodyRef.current = getBody;
+  }, []);
 
-  const handleSaveClick = useCallback(() => {
-    if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
-    if (bodyTimerRef.current) clearTimeout(bodyTimerRef.current);
-    performSave(true);
-  }, [performSave]);
+  const handleTitleChange = useCallback((next: string) => {
+    setTitle(next);
+    titleRef.current = next;
+  }, []);
 
-  const handleTitleChange = useCallback(
-    (title: string) => {
-      setPage((prev) => ({ ...prev, title }));
-      pageRef.current = { ...pageRef.current, title };
-      if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
-      titleTimerRef.current = setTimeout(performSave, 1500);
-    },
-    [performSave]
-  );
-
-  // 셀 하나만 고쳐도 body는 300ms마다 바뀔 수 있다. 여기서 setPage로 React
-  // state를 갱신하면 페이지 전체가 리렌더되고, 그때마다 BlockEditor에 새
-  // page prop이 흘러들어가 큰 문서를 다시 파싱하는 낭비가 생긴다(테이블이
-  // 클수록 체감 타이핑 지연으로 이어짐). body는 화면에 반영할 필요가 없는
-  // "저장용 스냅샷"일 뿐이므로 리렌더를 유발하지 않는 ref에만 담아둔다.
-  const handleBodyChange = useCallback(
-    (body: string) => {
-      pageRef.current = { ...pageRef.current, body };
-      if (bodyTimerRef.current) clearTimeout(bodyTimerRef.current);
-      bodyTimerRef.current = setTimeout(performSave, 2500);
-    },
-    [performSave]
-  );
+  const handleSaveClick = useCallback(async () => {
+    if (!canEdit) return;
+    setSaveStatus("saving");
+    const payload: PageData = {
+      ...initialPage,
+      title: titleRef.current,
+      body: getBodyRef.current(),
+    };
+    try {
+      const res = await fetch("/api/pages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setSaveStatus("saved");
+      if (savedResetTimerRef.current) clearTimeout(savedResetTimerRef.current);
+      savedResetTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
+      router.refresh();
+    } catch {
+      setSaveStatus("idle");
+      showErrorToast("저장에 실패했습니다. 다시 시도해주세요.");
+    }
+  }, [router, canEdit, initialPage]);
 
   return (
     <>
       <EditablePageHeader
-        title={page.title}
+        title={title}
         onTitleChange={handleTitleChange}
         isNew={isNew}
         onSave={canEdit ? handleSaveClick : undefined}
@@ -110,7 +83,7 @@ export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }:
       />
       <div className="px-8 py-4">
         <div className="border-t border-[var(--border)] mb-4" />
-        <BlockEditor page={initialPage} onBodyChange={handleBodyChange} editable={canEdit} />
+        <BlockEditor page={initialPage} registerGetBody={registerGetBody} editable={canEdit} />
       </div>
     </>
   );

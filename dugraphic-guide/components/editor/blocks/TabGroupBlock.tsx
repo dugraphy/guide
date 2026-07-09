@@ -4,6 +4,8 @@ import { createReactBlockSpec, useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import "@blocknote/mantine/style.css";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { useTabSyncRegistry } from "../tabSyncContext";
 
 interface TabItem {
   title: string;
@@ -34,21 +36,29 @@ const tabContentSchema = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs },
 });
 
-function TabPane({
-  content,
-  isEditable,
-  onContentChange,
-}: {
+export interface TabPaneHandle {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  content: any[];
-  isEditable: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onContentChange: (blocks: any[]) => void;
-}) {
+  getDocument: () => any[];
+}
+
+// 타이핑 중에는 이 서브 에디터 안에서만 상태가 바뀌고 부모(tabGroup 블록,
+// 상위 페이지 문서)로는 아무것도 전파되지 않는다 — 자동저장이 없으므로
+// 굳이 매 키 입력마다 동기화할 이유가 없다. 부모는 저장 버튼을 누르거나
+// 탭을 전환/삭제하는 시점에만 getDocument()로 현재 내용을 "당겨"간다.
+const TabPane = forwardRef<
+  TabPaneHandle,
+  {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    content: any[];
+    isEditable: boolean;
+  }
+>(function TabPane({ content, isEditable }, ref) {
   const subEditor = useCreateBlockNote({
     schema: tabContentSchema,
     initialContent: content.length > 0 ? content : undefined,
   });
+
+  useImperativeHandle(ref, () => ({ getDocument: () => subEditor.document }), [subEditor]);
 
   return (
     <div
@@ -72,15 +82,10 @@ function TabPane({
       onMouseMove={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
-      <BlockNoteView
-        editor={subEditor}
-        theme="light"
-        editable={isEditable}
-        onChange={() => onContentChange(subEditor.document)}
-      />
+      <BlockNoteView editor={subEditor} theme="light" editable={isEditable} />
     </div>
   );
-}
+});
 
 function TabGroupRenderer({
   block,
@@ -93,6 +98,8 @@ function TabGroupRenderer({
 }) {
   const tabs = parseTabs(block.props.tabs as string);
   const activeTab = Math.min(Math.max(block.props.activeTab as number, 0), tabs.length - 1);
+  const paneRef = useRef<TabPaneHandle | null>(null);
+  const registryRef = useTabSyncRegistry();
 
   const save = (nextTabs: TabItem[], nextActive: number = activeTab) => {
     editor.updateBlock(block.id, {
@@ -100,27 +107,47 @@ function TabGroupRenderer({
     });
   };
 
+  // 지금 화면에 떠 있는 활성 탭 서브 에디터의 최신 내용을 tabs 배열에 반영한
+  // 새 배열을 돌려준다. 탭 전환/삭제/저장처럼 서브 에디터가 사라지거나
+  // 문서 전체를 읽어야 하는 시점에만 호출한다(타이핑 중에는 호출되지 않음).
+  const flushActivePane = (): TabItem[] => {
+    if (!paneRef.current) return tabs;
+    const content = paneRef.current.getDocument();
+    return tabs.map((t, i) => (i === activeTab ? { ...t, content } : t));
+  };
+
+  // 저장 버튼을 누르면 BlockEditor가 등록된 모든 tabGroup의 이 콜백을
+  // 순서대로 호출해, 그제서야 활성 탭 내용을 블록 prop에 반영한다.
+  useEffect(() => {
+    if (!registryRef) return;
+    const registry = registryRef.current;
+    registry.set(block.id, () => {
+      const flushed = flushActivePane();
+      editor.updateBlock(block.id, { props: { tabs: JSON.stringify(flushed) } });
+    });
+    return () => {
+      registry.delete(block.id);
+    };
+  });
+
   const switchTab = (index: number) => {
-    editor.updateBlock(block.id, { props: { activeTab: index } });
+    save(flushActivePane(), index);
   };
 
   const renameTab = (index: number, title: string) => {
     save(tabs.map((t, i) => (i === index ? { ...t, title } : t)));
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updateTabContent = (index: number, content: any[]) => {
-    save(tabs.map((t, i) => (i === index ? { ...t, content } : t)));
-  };
-
   const addTab = () => {
-    const next = [...tabs, { title: `탭 ${tabs.length + 1}`, content: [] }];
+    const flushed = flushActivePane();
+    const next = [...flushed, { title: `탭 ${flushed.length + 1}`, content: [] }];
     save(next, next.length - 1);
   };
 
   const removeTab = (index: number) => {
     if (tabs.length <= 1) return;
-    const next = tabs.filter((_, i) => i !== index);
+    const flushed = flushActivePane();
+    const next = flushed.filter((_, i) => i !== index);
     save(next, Math.min(activeTab, next.length - 1));
   };
 
@@ -192,9 +219,9 @@ function TabGroupRenderer({
       <div className="pt-3">
         <TabPane
           key={activeTab}
+          ref={paneRef}
           content={tabs[activeTab]?.content ?? []}
           isEditable={!!editor.isEditable}
-          onContentChange={(blocks) => updateTabContent(activeTab, blocks)}
         />
       </div>
     </div>
