@@ -12,6 +12,7 @@ import { todoSpec } from "./blocks/TodoBlock";
 import { pricingCardsSpec } from "./blocks/PricingCardsBlock";
 import { calloutBoxSpec } from "./blocks/CalloutBoxBlock";
 import { tabGroupSpec } from "./blocks/TabGroupBlock";
+import { createResizableTableBlockSpec } from "./blocks/ResizableTableBlock";
 import type { TemplateRow } from "@/lib/templates";
 import { TabSyncContext, type TabFlushRegistry } from "./tabSyncContext";
 
@@ -19,6 +20,8 @@ import { TabSyncContext, type TabFlushRegistry } from "./tabSyncContext";
 const schema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
+    // 컬럼 너비(내장) + 행 높이(직접 구현) 드래그 리사이즈를 지원하는 표 블록으로 교체.
+    table: createResizableTableBlockSpec(),
     pageLink: pageLinkSpec,
     todo: todoSpec,
     pricingCards: pricingCardsSpec,

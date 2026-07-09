@@ -4,8 +4,10 @@ import { createReactBlockSpec, useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import "@blocknote/mantine/style.css";
+import type React from "react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useTabSyncRegistry } from "../tabSyncContext";
+import { createResizableTableBlockSpec } from "./ResizableTableBlock";
 
 interface TabItem {
   title: string;
@@ -33,7 +35,11 @@ function parseTabs(raw: string): TabItem[] {
 // 순환 참조가 생기고, tabGroup을 tabGroup 안에 중첩하는 경우까지 신경 써야
 // 해서 기본 블록만 있는 스키마로 범위를 제한한다.
 const tabContentSchema = BlockNoteSchema.create({
-  blockSpecs: { ...defaultBlockSpecs },
+  blockSpecs: {
+    ...defaultBlockSpecs,
+    // 탭 안 표에도 부모 에디터와 동일한 컬럼/행 리사이즈 기능을 적용한다.
+    table: createResizableTableBlockSpec(),
+  },
 });
 
 export interface TabPaneHandle {
@@ -60,27 +66,51 @@ const TabPane = forwardRef<
 
   useImperativeHandle(ref, () => ({ getDocument: () => subEditor.document }), [subEditor]);
 
+  // mousemove/mouseup을 부모 에디터로 버블링시키면 BlockNote의 TableHandles 확장이
+  // pmView.dom(부모 에디터 루트)에 달아둔 mousemove 리스너가 이 이벤트를 받아 서브 에디터
+  // 내부 block id를 부모 문서에서 찾다가 "Block with ID ... not found" 예외를 던진다 —
+  // 그래서 stopPropagation으로 버블링 자체는 막는다. 다만 표 컬럼 리사이즈(prosemirror-tables가
+  // window에 직접 붙이는 mousemove/mouseup)와 행 리사이즈(이 파일 ResizableTableBlock.ts도
+  // 동일하게 window 레벨로 듣는다)는 버블링이 아니라 각자 window.addEventListener로 드래그를
+  // 추적하므로, stopPropagation만으로는 그 리스너들도 함께 막혀버린다. 그래서 원본 이벤트는
+  // 막되, 좌표/버튼 상태만 복제한 새 MouseEvent를 window에 직접 dispatch해 그 리스너들에게는
+  // 정상적으로 전달되게 한다 — dispatchEvent(window, ...)는 DOM 트리를 타고 올라가는 버블링이
+  // 아니라 window 자신에게 바로 꽂아주는 것이라 부모의 pmView.dom 리스너는 거치지 않는다.
+  const forwardToWindow = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(
+      new MouseEvent(e.type, {
+        bubbles: false,
+        cancelable: true,
+        view: window,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        screenX: e.screenX,
+        screenY: e.screenY,
+        button: e.button,
+        buttons: e.buttons,
+        ctrlKey: e.ctrlKey,
+        shiftKey: e.shiftKey,
+        altKey: e.altKey,
+        metaKey: e.metaKey,
+      }),
+    );
+  };
+
   return (
     <div
       // 이 안에서 일어나는 타이핑/조합(IME)/클릭 이벤트가 부모 에디터로
       // 버블링되어 부모의 "/" 슬래시 메뉴나 키맵과 충돌하지 않도록 막는다.
       // (content:"none" 블록 안의 실제 contentEditable 영역은 BlockNote
       // 노드뷰의 기본 stopEvent로도 걸러지지만, 이중 안전장치로 둔다.)
-      //
-      // mousemove/mouseup도 반드시 막아야 한다 — BlockNote의 TableHandles
-      // 확장은 pmView.dom(부모 에디터 루트)에 직접 mousemove 리스너를 달고,
-      // 이벤트가 발생한 DOM이 부모 에디터의 표 셀인지를 data-id 기반으로
-      // 역추적한다. 여기(서브 에디터)의 표 DOM은 부모 view.dom의 자손이라
-      // 막지 않으면 그 리스너까지 버블링되고, 서브 에디터 내부의 block id를
-      // 부모 문서에서 찾다가 "Block with ID ... not found" 예외가 난다.
       onKeyDown={(e) => e.stopPropagation()}
       onKeyUp={(e) => e.stopPropagation()}
       onBeforeInput={(e) => e.stopPropagation()}
       onCompositionStart={(e) => e.stopPropagation()}
       onCompositionEnd={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
-      onMouseMove={(e) => e.stopPropagation()}
-      onMouseUp={(e) => e.stopPropagation()}
+      onMouseMove={forwardToWindow}
+      onMouseUp={forwardToWindow}
     >
       <BlockNoteView editor={subEditor} theme="light" editable={isEditable} />
     </div>
