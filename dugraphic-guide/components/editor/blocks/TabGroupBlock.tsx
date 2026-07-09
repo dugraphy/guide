@@ -2,7 +2,7 @@
 
 import { createReactBlockSpec, useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
-import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
+import { BlockNoteSchema, defaultBlockSpecs, selectedFragmentToHTML } from "@blocknote/core";
 import "@blocknote/mantine/style.css";
 import type React from "react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
@@ -65,6 +65,47 @@ const TabPane = forwardRef<
   });
 
   useImperativeHandle(ref, () => ({ getDocument: () => subEditor.document }), [subEditor]);
+
+  // BlockNote 코어의 복사 핸들러(copyToClipboard)는 checkIfSelectionInNonEditableBlock으로
+  // window.getSelection()의 조상을 타고 올라가며 contenteditable="false"를 찾는데, 멈추는
+  // 지점 없이 끝까지 올라간다. 탭(tabGroup) 블록은 content:"none" 커스텀 블록이라 BlockNote가
+  // 자동으로 감싸는 ".react-renderer" 래퍼 자체가 contenteditable="false"이고, 그 위에서
+  // TabPane은 완전히 독립된(진짜 contenteditable="true"인) 서브 에디터인데도 그 위쪽의 false를
+  // 발견해버려 "편집 불가능한 영역 안"으로 잘못 판단한다. 그러면 리치 복사(blocknote/html,
+  // 표 구조 보존)를 건너뛰고 브라우저 기본 복사(순수 텍스트, 표 구조 소실)로 떨어진다.
+  // capture 단계에서 우리가 직접 가로채(view.dom에 addEventListener(..., true)) 이 오탐을
+  // 우회한다 — capture는 같은 엘리먼트의 bubble(=PM 자체 핸들러)보다 항상 먼저 실행되므로,
+  // stopImmediatePropagation으로 BlockNote의 핸들러가 아예 호출되지 않게 막고 동일한 로직을
+  // (공개 API인 selectedFragmentToHTML로) 직접 수행한다.
+  useEffect(() => {
+    const view = subEditor.prosemirrorView;
+    if (!view) return;
+
+    const handleCopyOrCut = (e: ClipboardEvent) => {
+      if (view.state.selection.empty) {
+        return;
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      e.clipboardData!.clearData();
+
+      const { clipboardHTML, externalHTML, markdown } = selectedFragmentToHTML(view, subEditor);
+      e.clipboardData!.setData("blocknote/html", clipboardHTML);
+      e.clipboardData!.setData("text/html", externalHTML);
+      e.clipboardData!.setData("text/plain", markdown);
+
+      if (e.type === "cut" && view.editable) {
+        subEditor.transact((tr) => tr.deleteSelection());
+      }
+    };
+
+    view.dom.addEventListener("copy", handleCopyOrCut, true);
+    view.dom.addEventListener("cut", handleCopyOrCut, true);
+    return () => {
+      view.dom.removeEventListener("copy", handleCopyOrCut, true);
+      view.dom.removeEventListener("cut", handleCopyOrCut, true);
+    };
+  }, [subEditor]);
 
   // mousemove/mouseup을 부모 에디터로 버블링시키면 BlockNote의 TableHandles 확장이
   // pmView.dom(부모 에디터 루트)에 달아둔 mousemove 리스너가 이 이벤트를 받아 서브 에디터
@@ -182,8 +223,15 @@ function TabGroupRenderer({
   };
 
   return (
-    <div contentEditable={false} className="my-1 w-full">
-      <div className="flex items-center gap-0.5 overflow-x-auto">
+    <div className="my-1 w-full">
+      {/* 탭 바(제목/추가/삭제 버튼)만 contentEditable=false로 둔다 — 아래 TabPane은
+          자기 자신이 완전히 별도의(제대로 contentEditable=true인) BlockNote 서브 에디터라,
+          이 바깥까지 통째로 false로 감싸면 BlockNote 코어의 checkIfSelectionInNonEditableBlock
+          (복사 시 window.getSelection()에서 조상을 타고 올라가며 contenteditable="false"를
+          찾는 로직)이 서브 에디터 자신의 true 경계를 무시하고 이 바깥 false까지 올라가버려,
+          탭 안에서 복사할 때마다 BlockNote의 리치 복사(표 구조 보존)가 아니라 브라우저 기본
+          텍스트 복사로 떨어지는 문제가 있었다. */}
+      <div contentEditable={false} className="flex items-center gap-0.5 overflow-x-auto">
         {tabs.map((tab, i) => {
           const isActive = i === activeTab;
           return (
@@ -245,7 +293,7 @@ function TabGroupRenderer({
           </button>
         )}
       </div>
-      <div className="border-b border-[var(--border)]" />
+      <div contentEditable={false} className="border-b border-[var(--border)]" />
       <div className="pt-3">
         <TabPane
           key={activeTab}
