@@ -15,6 +15,7 @@ import { tabGroupSpec } from "./blocks/TabGroupBlock";
 import { createResizableTableBlockSpec } from "./blocks/ResizableTableBlock";
 import type { TemplateRow } from "@/lib/templates";
 import { TabSyncContext, type TabFlushRegistry } from "./tabSyncContext";
+import { registerDragStateEditor } from "./dragStateRegistry";
 
 // Custom schema — defined at module level so the reference stays stable across renders
 const schema = BlockNoteSchema.create({
@@ -96,6 +97,11 @@ function BlockEditor({ page, editable = true, registerGetBody }: Props) {
       .then(setTemplates)
       .catch(() => {});
   }, [editable]);
+
+  // 간헐적으로, 중간에 끊긴(dragend가 문서까지 버블링되지 못한) 이전 드래그의 잔여 상태
+  // (pmView.dragging/isDragOrigin)가 다음 드래그로 새어 들어가는 문제를 막기 위해, 이 에디터를
+  // 전역 정리 대상으로 등록한다 — 자세한 이유는 dragStateRegistry.ts 참고.
+  useEffect(() => registerDragStateEditor(editor), [editor]);
 
   return (
     <TabSyncContext.Provider value={flushRegistryRef}>

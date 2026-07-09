@@ -9,6 +9,7 @@ import type React from "react";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTabSyncRegistry } from "../tabSyncContext";
 import { createResizableTableBlockSpec } from "./ResizableTableBlock";
+import { registerDragStateEditor } from "../dragStateRegistry";
 
 // BlockNote 코어의 getDraggableBlockFromElement(extensions/getDraggableBlockFromElement.ts)와
 // 동일한 로직 — export되지 않아 그대로 옮겨왔다. 커서 아래 DOM 엘리먼트에서 가장 가까운
@@ -89,6 +90,11 @@ const TabPane = forwardRef<
   });
 
   useImperativeHandle(ref, () => ({ getDocument: () => subEditor.document }), [subEditor]);
+
+  // 이 서브 에디터도 전역 드래그 상태 정리 대상으로 등록한다 — 자세한 이유는
+  // dragStateRegistry.ts 참고(중단된 드래그의 pmView.dragging/isDragOrigin 잔여 상태가
+  // 다음 드래그로 새어 들어가는 것을 막는다).
+  useEffect(() => registerDragStateEditor(subEditor), [subEditor]);
 
   // BlockNote 코어의 복사 핸들러(copyToClipboard)는 checkIfSelectionInNonEditableBlock으로
   // window.getSelection()의 조상을 타고 올라가며 contenteditable="false"를 찾는데, 멈추는
