@@ -19,11 +19,26 @@
 //    그래서 지금은 raw한 pmView.dragging = null만 정리하고 blur는 절대 호출하지 않는다.
 //
 // 2) (더 중요) 그렇게 해도 근본 원인을 100% 확신할 수 없으므로, 드래그 시작 시점의 모든 등록된
-//    에디터 문서를 스냅샷으로 저장해두고, 드래그가 끝난 뒤 전체 콘텐츠 총량이 의심스럽게
-//    줄어들면(표가 사라지거나 텍스트로 뭉개지는 등) 자동으로 스냅샷 상태로 되돌린다. 원인이
-//    무엇이든— BlockNote 자체 버그든, 이 파일의 정리 로직 자체든 — 결과적으로 데이터가 사라지는
-//    것만은 항상 막는 안전망이다. dragend가 아예 발생하지 않는 최악의 경우까지 대비해 다음
-//    dragstart 시점과 타임아웃에서도 한 번 더 확인한다.
+//    에디터 문서를 스냅샷으로 저장해두고, 드래그가 끝난 뒤 "드래그 시작 시점에 존재하던 블록
+//    id가 하나라도 사라졌는지"를 확인해 그러면 자동으로 스냅샷 상태로 되돌린다. 원인이 무엇이든
+//    — BlockNote 자체 버그든, 이 파일의 정리 로직 자체든 — 결과적으로 데이터가 사라지는 것만은
+//    항상 막는 안전망이다. dragend가 아예 발생하지 않는 최악의 경우까지 대비해 다음 dragstart
+//    시점과 타임아웃에서도 한 번 더 확인한다.
+//
+//    ⚠️ 처음 버전은 "등록된 모든 에디터의 JSON 문자열 길이 합"이 일정 비율 이상 줄었는지로
+//    판단했는데, 실제 사용자 영상으로 재현해보니 이 방식은 무력했다: 탭 안 표를 탭 밖으로
+//    드래그했을 때 실제로 벌어진 일은 (a) 표가 엉뚱한 위치(메인 에디터의 다른 헤딩 바로 아래)에
+//    끼어들면서 (b) 원래 그 자리에 있던 calloutBox 블록을 통째로 밀어내 사라지게 만들고,
+//    (c) 표가 있던 원래 자리는 빈 문단으로 남는 것이었다 — 표 콘텐츠 자체는 다른 곳으로
+//    옮겨갔을 뿐이라 등록된 에디터 전체를 합친 글자수 총량은 거의 줄지 않았고, 그래서 길이
+//    기반 휴리스틱이 이 손실을 통과시켰다. BlockNote가 드래그 페이로드(blocknote/html)에
+//    블록의 원래 id를 `data-id`로 그대로 실어 보내고(각 SideMenuView가 그 html을 파싱해
+//    view.dragging을 채우는 방식, node_modules/@blocknote/core/.../SideMenu.ts의 onDragStart
+//    참고) 정상적인 "이동"은 그 id를 새 위치에서도 그대로 재사용한다는 점에 착안해, 지금은
+//    "총량"이 아니라 "드래그 시작 시점에 있던 블록 id 집합이 드래그 후에도 (등록된 에디터
+//    전체를 통틀어) 전부 그대로 남아있는가"를 확인한다. 표 자신의 id는 이동했으므로 계속
+//    남아있고, calloutBox처럼 엉뚱하게 밀려나 사라진 블록의 id는 사라진 채로 남아 바로
+//    잡아낼 수 있다.
 import type { BlockNoteEditor } from "@blocknote/core";
 import { showErrorToast } from "@/components/Toast";
 
@@ -55,38 +70,53 @@ type Snapshot = Map<AnyEditor, string>; // editor -> JSON.stringify(editor.docum
 
 interface PendingCheck {
   snapshot: Snapshot;
-  beforeTotalLength: number;
+  idsBefore: Set<string>;
   verified: boolean;
   hardTimeoutId: ReturnType<typeof setTimeout>;
 }
 
 let pending: PendingCheck | null = null;
 
-function takeSnapshot(): { snapshot: Snapshot; totalLength: number } {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function collectBlockIds(blocks: any[] | undefined, out: Set<string>) {
+  if (!Array.isArray(blocks)) {
+    return;
+  }
+  for (const block of blocks) {
+    if (block && typeof block.id === "string") {
+      out.add(block.id);
+    }
+    if (Array.isArray(block?.children) && block.children.length > 0) {
+      collectBlockIds(block.children, out);
+    }
+  }
+}
+
+function takeSnapshot(): { snapshot: Snapshot; idsBefore: Set<string> } {
   const snapshot: Snapshot = new Map();
-  let totalLength = 0;
+  const idsBefore = new Set<string>();
   for (const editor of registeredEditors) {
     try {
       const json = JSON.stringify(editor.document);
       snapshot.set(editor, json);
-      totalLength += json.length;
+      collectBlockIds(editor.document, idsBefore);
     } catch {
       // 이 에디터는 스냅샷에서 제외 — 복원 시에도 건드리지 않는다.
     }
   }
-  return { snapshot, totalLength };
+  return { snapshot, idsBefore };
 }
 
-function currentTotalLength(editors: Iterable<AnyEditor>): number {
-  let total = 0;
+function currentBlockIds(editors: Iterable<AnyEditor>): Set<string> {
+  const ids = new Set<string>();
   for (const editor of editors) {
     try {
-      total += JSON.stringify(editor.document).length;
+      collectBlockIds(editor.document, ids);
     } catch {
       // ignore
     }
   }
-  return total;
+  return ids;
 }
 
 function restoreSnapshot(snapshot: Snapshot) {
@@ -102,9 +132,10 @@ function restoreSnapshot(snapshot: Snapshot) {
   }
 }
 
-// 드래그 총량이 눈에 띄게 줄었으면(표 하나가 통째로 사라지거나 텍스트로 뭉개지는 등) 데이터
-// 손실로 간주하고 드래그 시작 시점 스냅샷으로 되돌린다. 사소한 공백/포맷 차이까지 오탐하지
-//않도록 약간의 여유(허용 오차)를 둔다.
+// 드래그 시작 시점에 존재하던 블록 id 중 하나라도 (등록된 에디터 전체를 통틀어) 사라졌으면
+// 데이터 손실로 간주하고 드래그 시작 시점 스냅샷으로 되돌린다. 드래그된 블록 자신의 id는 새
+// 위치에서도 그대로 재사용되므로(위 주석 참고) 정상적인 이동에서는 걸리지 않고, 드롭 과정에서
+// 엉뚱하게 대체되거나 밀려나 사라진 다른 블록만 잡아낸다.
 function verifyAndRestoreIfNeeded(check: PendingCheck) {
   if (check.verified) {
     return;
@@ -112,14 +143,10 @@ function verifyAndRestoreIfNeeded(check: PendingCheck) {
   check.verified = true;
   clearTimeout(check.hardTimeoutId);
 
-  const after = currentTotalLength(check.snapshot.keys());
-  const before = check.beforeTotalLength;
-  const shrinkage = before - after;
-  const shrinkRatio = before > 0 ? shrinkage / before : 0;
+  const idsAfter = currentBlockIds(check.snapshot.keys());
+  const missingIds = [...check.idsBefore].filter((id) => !idsAfter.has(id));
 
-  // 30자 미만의 절대 감소, 또는 2% 미만의 상대 감소는 정상적인 사소한 차이(공백 정리 등)로
-  // 보고 넘어간다. 그보다 크게 줄었으면 표/블록이 실제로 사라졌을 가능성이 높다.
-  if (shrinkage > 30 && shrinkRatio > 0.02) {
+  if (missingIds.length > 0) {
     restoreSnapshot(check.snapshot);
     showErrorToast(
       "드래그 중 내용이 손실될 뻔해 자동으로 되돌렸습니다. 다시 시도해주세요.",
@@ -151,12 +178,12 @@ function installCleanupListenerOnce() {
 
       resetDragStateForAllEditors();
 
-      const { snapshot, totalLength } = takeSnapshot();
+      const { snapshot, idsBefore } = takeSnapshot();
       let check: PendingCheck;
       // eslint-disable-next-line prefer-const
       check = {
         snapshot,
-        beforeTotalLength: totalLength,
+        idsBefore,
         verified: false,
         // dragend도, 다음 dragstart도 안 오는 최악의 경우를 위한 하드 타임아웃.
         hardTimeoutId: setTimeout(() => {
