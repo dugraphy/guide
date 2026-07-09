@@ -62,8 +62,12 @@ const TabPane = forwardRef<
     isEditable: boolean;
     // TEMP DIAGNOSTIC — 로그에서 "탭: <제목>"으로 구분하기 위한 이름표.
     label: string;
+    // 이 TabPane이 속한 tabGroup 블록의 id. 안전망(dragStateRegistry)이 "이 라이브
+    // 서브 에디터가 어느 tabGroup의 현재 활성 탭인지"를 알아야, 그 tabGroup의 비활성
+    // 탭들(라이브 에디터가 없는)까지 포함해서 정확하게 블록 존재 여부를 판정할 수 있다.
+    tabGroupBlockId: string;
   }
->(function TabPane({ content, isEditable, label }, ref) {
+>(function TabPane({ content, isEditable, label, tabGroupBlockId }, ref) {
   const subEditor = useCreateBlockNote({
     schema: tabContentSchema,
     initialContent: content.length > 0 ? content : undefined,
@@ -74,7 +78,10 @@ const TabPane = forwardRef<
   // 이 서브 에디터도 전역 드래그 상태 정리 대상으로 등록한다 — 자세한 이유는
   // dragStateRegistry.ts 참고(중단된 드래그의 pmView.dragging/isDragOrigin 잔여 상태가
   // 다음 드래그로 새어 들어가는 것을 막는다).
-  useEffect(() => registerDragStateEditor(subEditor, `탭: ${label}`), [subEditor, label]);
+  useEffect(
+    () => registerDragStateEditor(subEditor, `탭: ${label}`, tabGroupBlockId),
+    [subEditor, label, tabGroupBlockId],
+  );
 
   // BlockNote 코어의 복사 핸들러(copyToClipboard)는 checkIfSelectionInNonEditableBlock으로
   // window.getSelection()의 조상을 타고 올라가며 contenteditable="false"를 찾는데, 멈추는
@@ -510,6 +517,7 @@ function TabGroupRenderer({
           content={tabs[activeTab]?.content ?? []}
           isEditable={!!editor.isEditable}
           label={tabs[activeTab]?.title ?? `탭 ${activeTab + 1}`}
+          tabGroupBlockId={block.id}
         />
       </div>
     </div>

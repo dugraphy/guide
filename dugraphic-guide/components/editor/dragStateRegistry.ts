@@ -50,6 +50,10 @@ const registeredEditors = new Set<AnyEditor>();
 // TEMP DIAGNOSTIC — 각 등록된 에디터가 "메인"인지 "탭: <제목>"인지 사람이 읽을 수 있는
 // 이름. 로그에서 어느 에디터/탭에서 이벤트가 발생했는지 구분하기 위해서만 쓴다.
 const editorLabels = new Map<AnyEditor, string>();
+// 이 서브 에디터가 어느 tabGroup 블록의 "현재 활성 탭"을 실체화한 것인지 (메인 에디터는
+// undefined). 아래 computeCurrentBlockMap이 비활성 탭(마운트되지 않아 라이브 에디터가
+// 없는 탭)의 블록도 놓치지 않고 판정하는 데 쓴다.
+const editorOwnerTabGroupId = new Map<AnyEditor, string | undefined>();
 let cleanupListenerInstalled = false;
 
 function resetDragStateForAllEditors() {
@@ -74,53 +78,159 @@ type Snapshot = Map<AnyEditor, string>; // editor -> JSON.stringify(editor.docum
 
 interface PendingCheck {
   snapshot: Snapshot;
-  idsBefore: Set<string>;
+  blockMapBefore: Map<string, string>; // id -> fingerprint(내용, id 제외)
   verified: boolean;
   hardTimeoutId: ReturnType<typeof setTimeout>;
 }
 
 let pending: PendingCheck | null = null;
 
+// 블록의 id/children의 개별 id는 무시하고 "구조·내용이 같은 블록인가"만 비교하기 위한
+// 지문. 실제 사용자 로그로 확인된 두 번째 오탐 원인: 같은 탭 안에서 표를 살짝만 옮겨도
+// BlockNote가 (아마도 내부적인 삭제-후-재삽입 방식으로) 그 블록에 새 id를 부여하는 경우가
+// 있다 — 내용은 그대로인데 id만 바뀌는, 데이터 손실이 아닌 정상적인 상황이다. id만 보고
+// "사라졌다"고 판단하면 이런 경우까지 전부 오탐으로 잡아 불필요하게 되돌리고 에러 토스트를
+// 띄우게 된다. 그래서 "이전 id가 사라졌어도, 같은 지문의 블록이 어딘가에 남아있으면"
+// 손실이 아니라 단순 재배치/id 교체로 간주한다.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function collectBlockIds(blocks: any[] | undefined, out: Set<string>) {
+function fingerprintBlock(block: any): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const strip = (b: any): any => {
+    if (!b || typeof b !== "object") {
+      return b;
+    }
+    if (Array.isArray(b)) {
+      return b.map(strip);
+    }
+    const { id: _id, children, ...rest } = b;
+    return { ...rest, children: Array.isArray(children) ? children.map(strip) : children };
+  };
+  return JSON.stringify(strip(block));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function collectBlockMapPlain(blocks: any[] | undefined, out: Map<string, string>) {
   if (!Array.isArray(blocks)) {
     return;
   }
   for (const block of blocks) {
     if (block && typeof block.id === "string") {
-      out.add(block.id);
+      out.set(block.id, fingerprintBlock(block));
     }
     if (Array.isArray(block?.children) && block.children.length > 0) {
-      collectBlockIds(block.children, out);
+      collectBlockMapPlain(block.children, out);
     }
   }
 }
 
-function takeSnapshot(): { snapshot: Snapshot; idsBefore: Set<string> } {
+// tabGroup 블록은 각 탭의 콘텐츠를 실제 자식 블록이 아니라 props.tabs(JSON 문자열)에
+// 저장하고, 그중 "현재 활성 탭"만 별도의 라이브 서브 에디터(TabGroupBlock.tsx의 TabPane,
+// key={activeTab}로 탭을 전환할 때마다 마운트/언마운트됨)로 실체화한다. 그래서 비활성
+// 탭은 애초에 registeredEditors에 라이브 에디터가 존재하지 않는다 — "에디터 인스턴스가
+// 있는지"로 블록 존재 여부를 판정하면 비활성 탭의 블록은 항상 "사라진 것"으로 오판된다
+// (실제 사용자 로그로 확인된 첫 번째 오탐 원인).
+//
+// 그래서 메인 문서를 순회하다 tabGroup 블록을 만나면: 활성 탭은 등록된 라이브 서브
+// 에디터가 있으면 그 최신 상태(.document)를 쓰고(props.tabs는 마지막 저장/탭 전환
+// 시점에만 동기화되므로 활성 탭 안에서는 오래된 값일 수 있다), 그 외 모든(비활성) 탭은
+// props.tabs에 저장된 데이터를 직접 파싱해 판정한다 — 라이브 에디터가 있든 없든 항상
+// 정확하다.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function collectMainDocumentBlockMap(blocks: any[] | undefined, liveEditorsByOwner: Map<string, AnyEditor>, out: Map<string, string>) {
+  if (!Array.isArray(blocks)) {
+    return;
+  }
+  for (const block of blocks) {
+    if (!block || typeof block.id !== "string") {
+      continue;
+    }
+    out.set(block.id, fingerprintBlock(block));
+
+    if (block.type === "tabGroup") {
+      const activeTabIndex = typeof block.props?.activeTab === "number" ? block.props.activeTab : 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let tabs: Array<{ content?: any[] }> = [];
+      try {
+        const parsed = JSON.parse(block.props?.tabs ?? "[]");
+        if (Array.isArray(parsed)) {
+          tabs = parsed;
+        }
+      } catch {
+        // props.tabs가 깨진 JSON이면 이 tabGroup 블록의 하위 탭 콘텐츠는 판정 불가 —
+        // 블록 자신의 id는 이미 위에서 추가했으니 그대로 둔다.
+      }
+      const liveEditor = liveEditorsByOwner.get(block.id);
+      tabs.forEach((tab, index) => {
+        if (index === activeTabIndex && liveEditor) {
+          try {
+            collectBlockMapPlain(liveEditor.document, out);
+            return;
+          } catch {
+            // 라이브 에디터 읽기 실패 — 아래 props.tabs 폴백으로 넘어간다.
+          }
+        }
+        collectBlockMapPlain(tab.content, out);
+      });
+      continue;
+    }
+
+    if (Array.isArray(block.children) && block.children.length > 0) {
+      collectMainDocumentBlockMap(block.children, liveEditorsByOwner, out);
+    }
+  }
+}
+
+// 등록된 에디터 중 "메인"(어느 tabGroup에도 속하지 않은) 에디터를 찾아, 그 문서를
+// tabGroup-aware하게 순회해서 현재 존재하는 모든 블록의 id -> 지문 맵을 계산한다. 메인
+// 에디터를 못 찾는 예외적인 경우(테스트 환경 등)에는 등록된 모든 에디터를 그냥 평평하게
+// 스캔하는 이전 방식으로 안전하게 폴백한다.
+function computeCurrentBlockMap(): Map<string, string> {
+  const ids = new Map<string, string>();
+  let mainEditor: AnyEditor | undefined;
+  const liveEditorsByOwner = new Map<string, AnyEditor>();
+
+  for (const editor of registeredEditors) {
+    const owner = editorOwnerTabGroupId.get(editor);
+    if (owner === undefined) {
+      if (!mainEditor) {
+        mainEditor = editor;
+      }
+    } else {
+      liveEditorsByOwner.set(owner, editor);
+    }
+  }
+
+  if (!mainEditor) {
+    // 폴백: 메인 에디터를 식별할 수 없으면 예전처럼 등록된 모든 에디터를 평평하게 스캔한다.
+    for (const editor of registeredEditors) {
+      try {
+        collectBlockMapPlain(editor.document, ids);
+      } catch {
+        // ignore
+      }
+    }
+    return ids;
+  }
+
+  try {
+    collectMainDocumentBlockMap(mainEditor.document, liveEditorsByOwner, ids);
+  } catch {
+    // ignore
+  }
+  return ids;
+}
+
+function takeSnapshot(): { snapshot: Snapshot; blockMapBefore: Map<string, string> } {
   const snapshot: Snapshot = new Map();
-  const idsBefore = new Set<string>();
   for (const editor of registeredEditors) {
     try {
-      const json = JSON.stringify(editor.document);
-      snapshot.set(editor, json);
-      collectBlockIds(editor.document, idsBefore);
+      snapshot.set(editor, JSON.stringify(editor.document));
     } catch {
       // 이 에디터는 스냅샷에서 제외 — 복원 시에도 건드리지 않는다.
     }
   }
-  return { snapshot, idsBefore };
-}
-
-function currentBlockIds(editors: Iterable<AnyEditor>): Set<string> {
-  const ids = new Set<string>();
-  for (const editor of editors) {
-    try {
-      collectBlockIds(editor.document, ids);
-    } catch {
-      // ignore
-    }
-  }
-  return ids;
+  const blockMapBefore = computeCurrentBlockMap();
+  return { snapshot, blockMapBefore };
 }
 
 function restoreSnapshot(snapshot: Snapshot) {
@@ -137,9 +247,10 @@ function restoreSnapshot(snapshot: Snapshot) {
 }
 
 // 드래그 시작 시점에 존재하던 블록 id 중 하나라도 (등록된 에디터 전체를 통틀어) 사라졌으면
-// 데이터 손실로 간주하고 드래그 시작 시점 스냅샷으로 되돌린다. 드래그된 블록 자신의 id는 새
-// 위치에서도 그대로 재사용되므로(위 주석 참고) 정상적인 이동에서는 걸리지 않고, 드롭 과정에서
-// 엉뚱하게 대체되거나 밀려나 사라진 다른 블록만 잡아낸다.
+// 일단 의심하되, 곧바로 손실로 단정하지 않는다 — 같은 지문(내용, id 제외)의 블록이 현재
+// 상태 어딘가에 남아있으면 그건 그냥 id가 바뀐 정상적인 재배치이므로 손실이 아니다(위
+// fingerprintBlock 주석 참고). 어떤 지문으로도 찾을 수 없는, 진짜로 사라진 경우에만
+// 드래그 시작 시점 스냅샷으로 되돌린다.
 function verifyAndRestoreIfNeeded(check: PendingCheck) {
   if (check.verified) {
     return;
@@ -147,12 +258,16 @@ function verifyAndRestoreIfNeeded(check: PendingCheck) {
   check.verified = true;
   clearTimeout(check.hardTimeoutId);
 
-  const idsAfter = currentBlockIds(check.snapshot.keys());
-  const missingIds = [...check.idsBefore].filter((id) => !idsAfter.has(id));
+  const mapAfter = computeCurrentBlockMap();
+  const afterFingerprints = new Set(mapAfter.values());
 
-  if (missingIds.length > 0) {
-    dndLog("restore-triggered", `사라진 블록 id: [${missingIds.join(", ")}]`);
-    dumpRecentDndLog(`안전망 복원 발생 (사라진 블록: ${missingIds.join(", ")})`);
+  const trulyMissingIds = [...check.blockMapBefore.entries()]
+    .filter(([id, fingerprint]) => !mapAfter.has(id) && !afterFingerprints.has(fingerprint))
+    .map(([id]) => id);
+
+  if (trulyMissingIds.length > 0) {
+    dndLog("restore-triggered", `사라진 블록 id: [${trulyMissingIds.join(", ")}]`);
+    dumpRecentDndLog(`안전망 복원 발생 (사라진 블록: ${trulyMissingIds.join(", ")})`);
     restoreSnapshot(check.snapshot);
     showErrorToast(
       "드래그 중 내용이 손실될 뻔해 자동으로 되돌렸습니다. 다시 시도해주세요.",
@@ -221,13 +336,13 @@ function installCleanupListenerOnce() {
 
       resetDragStateForAllEditors();
 
-      const { snapshot, idsBefore } = takeSnapshot();
-      dndLog("dragstart", `스냅샷 완료: 등록된 에디터 ${snapshot.size}개, 블록 id ${idsBefore.size}개`);
+      const { snapshot, blockMapBefore } = takeSnapshot();
+      dndLog("dragstart", `스냅샷 완료: 등록된 에디터 ${snapshot.size}개, 블록 id ${blockMapBefore.size}개`);
       let check: PendingCheck;
       // eslint-disable-next-line prefer-const
       check = {
         snapshot,
-        idsBefore,
+        blockMapBefore,
         verified: false,
         // dragend도, 다음 dragstart도 안 오는 최악의 경우를 위한 하드 타임아웃.
         hardTimeoutId: setTimeout(() => {
@@ -296,13 +411,23 @@ function installCleanupListenerOnce() {
  * 대상으로 등록하고, cleanup(useEffect의 반환값)에서 해제한다.
  *
  * label은 TEMP DIAGNOSTIC 로그에서 "메인"/"탭: xxx"처럼 사람이 읽을 수 있는 이름으로만 쓰인다.
+ *
+ * ownerTabGroupBlockId는 이 에디터가 특정 tabGroup 블록의 "현재 활성 탭"을 실체화한
+ * 서브 에디터일 때 그 tabGroup 블록의 id를 전달한다. 메인 에디터는 생략한다(undefined) —
+ * computeCurrentBlockMap이 이 값으로 "메인 에디터"와 "탭 서브 에디터"를 구분한다.
  */
-export function registerDragStateEditor(editor: AnyEditor, label: string = "?"): () => void {
+export function registerDragStateEditor(
+  editor: AnyEditor,
+  label: string = "?",
+  ownerTabGroupBlockId?: string,
+): () => void {
   installCleanupListenerOnce();
   registeredEditors.add(editor);
   editorLabels.set(editor, label);
+  editorOwnerTabGroupId.set(editor, ownerTabGroupBlockId);
   return () => {
     registeredEditors.delete(editor);
     editorLabels.delete(editor);
+    editorOwnerTabGroupId.delete(editor);
   };
 }
