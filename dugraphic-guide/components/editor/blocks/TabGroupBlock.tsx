@@ -3,11 +3,35 @@
 import { createReactBlockSpec, useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { BlockNoteSchema, defaultBlockSpecs, selectedFragmentToHTML } from "@blocknote/core";
+import { SideMenuExtension } from "@blocknote/core/extensions";
 import "@blocknote/mantine/style.css";
 import type React from "react";
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTabSyncRegistry } from "../tabSyncContext";
 import { createResizableTableBlockSpec } from "./ResizableTableBlock";
+
+// BlockNote 코어의 getDraggableBlockFromElement(extensions/getDraggableBlockFromElement.ts)와
+// 동일한 로직 — export되지 않아 그대로 옮겨왔다. 커서 아래 DOM 엘리먼트에서 가장 가까운
+// "블록 하나" 단위(data-node-type="blockContainer")를 찾는다.
+function getDraggableBlockFromElement(
+  element: Element | null,
+  viewDom: HTMLElement,
+): { node: HTMLElement; id: string } | undefined {
+  let el = element;
+  while (
+    el &&
+    el.parentElement &&
+    el.parentElement !== viewDom &&
+    el.getAttribute?.("data-node-type") !== "blockContainer"
+  ) {
+    el = el.parentElement;
+  }
+  if (!el || el.getAttribute?.("data-node-type") !== "blockContainer") {
+    return undefined;
+  }
+  const id = el.getAttribute("data-id");
+  return id ? { node: el as HTMLElement, id } : undefined;
+}
 
 interface TabItem {
   title: string;
@@ -107,39 +131,146 @@ const TabPane = forwardRef<
     };
   }, [subEditor]);
 
-  // mousemove/mouseup을 부모 에디터로 버블링시키면 BlockNote의 TableHandles 확장이
-  // pmView.dom(부모 에디터 루트)에 달아둔 mousemove 리스너가 이 이벤트를 받아 서브 에디터
-  // 내부 block id를 부모 문서에서 찾다가 "Block with ID ... not found" 예외를 던진다 —
-  // 그래서 stopPropagation으로 버블링 자체는 막는다. 다만 표 컬럼 리사이즈(prosemirror-tables가
-  // window에 직접 붙이는 mousemove/mouseup)와 행 리사이즈(이 파일 ResizableTableBlock.ts도
-  // 동일하게 window 레벨로 듣는다)는 버블링이 아니라 각자 window.addEventListener로 드래그를
-  // 추적하므로, stopPropagation만으로는 그 리스너들도 함께 막혀버린다. 그래서 원본 이벤트는
-  // 막되, 좌표/버튼 상태만 복제한 새 MouseEvent를 window에 직접 dispatch해 그 리스너들에게는
-  // 정상적으로 전달되게 한다 — dispatchEvent(window, ...)는 DOM 트리를 타고 올라가는 버블링이
-  // 아니라 window 자신에게 바로 꽂아주는 것이라 부모의 pmView.dom 리스너는 거치지 않는다.
-  const forwardToWindow = (e: React.MouseEvent) => {
+  // 탭 안 표/블록을 밖(메인 에디터·다른 탭)으로 드래그하기 위한 자체 드래그 핸들.
+  //
+  // BlockNote 코어의 SideMenu(hover 시 왼쪽에 뜨는 grip 핸들)는 여러 에디터가 같은 페이지에
+  // 있을 때 "커서에서 가장 가까운 에디터"를 찾아(SideMenu.ts의 findClosestEditorElement)
+  // 그 에디터의 SideMenuView만 자신의 핸들을 보여주는데, 거리 계산이 각 에디터의 bounding box
+  // 기준이라 이 탭처럼 서브 에디터가 메인 에디터 "안에" 중첩된 경우 두 에디터 모두 거리 0으로
+  // 동률이 나고, 동률일 땐 document 안에서 먼저 나오는(=항상 메인) 에디터가 이긴다. 그 결과
+  // 탭 안 콘텐츠를 호버해도 서브 에디터 자신의 SideMenu는 절대 뜨지 않는다 — 중첩 에디터를
+  // 상정하지 않은 BlockNote 자체의 한계라 이벤트 재전달만으로는 못 고친다.
+  //
+  // 대신 "어떤 블록을 호버 중인지"만 직접 추적해서 자체 grip 버튼을 그리고, 실제 드래그 동작은
+  // BlockNote가 이미 제공하는 공개 API인 SideMenuExtension의 blockDragStart/blockDragEnd를
+  // 그대로 호출한다 — dataTransfer 구성, NodeSelection 지정, 드롭 성공 시 원본 삭제(이동)
+  // 처리까지 전부 BlockNote 자신의 검증된 로직을 재사용하는 것이고, 우리가 새로 만드는 건
+  // "언제 handle을 보여줄지" 판단 부분뿐이다.
+  const [hoveredBlock, setHoveredBlock] = useState<{ id: string; top: number; left: number } | null>(null);
+  const paneWrapperRef = useRef<HTMLDivElement>(null);
+  const gripRef = useRef<HTMLDivElement>(null);
+  const dragOriginRef = useRef(false);
+
+  // 안전장치: grip을 눌렀다가(mousedown) 실제로는 드래그하지 않고 그냥 놓은 경우
+  // dragstart/dragend가 아예 발생하지 않을 수 있다 — 그러면 dragOriginRef가 true로 영영
+  // 남아 호버 추적이 계속 멈춰있게 된다. mouseup은 클릭이든 드래그 종료든 항상 일어나므로
+  // 여기서 한 번 더 풀어준다.
+  useEffect(() => {
+    const onGlobalMouseUp = () => {
+      dragOriginRef.current = false;
+    };
+    document.addEventListener("mouseup", onGlobalMouseUp);
+    return () => document.removeEventListener("mouseup", onGlobalMouseUp);
+  }, []);
+
+  useEffect(() => {
+    const view = subEditor.prosemirrorView;
+    const wrapper = paneWrapperRef.current;
+    if (!view || !wrapper) return;
+
+    const updateFromPoint = (clientX: number, clientY: number) => {
+      // 드래그가 진행 중일 때는 호버 상태를 건드리지 않는다 — 안 그러면 드래그 중
+      // 커서가 grip 버튼 바깥(예: 실제로 옮기려는 표 위)으로 움직이는 순간 hoveredBlock이
+      // 바뀌거나 null이 되면서 이 grip 엘리먼트가 리렌더로 사라져, 브라우저가 진행 중이던
+      // 네이티브 드래그를 그 자리에서 취소해버린다(드래그 소스 엘리먼트가 DOM에서 없어지면
+      // dragstart 자체가 발생하지 않거나 드래그가 중단된다).
+      if (dragOriginRef.current) {
+        return;
+      }
+      const target = document.elementFromPoint(clientX, clientY);
+      // grip 자신은 실제 블록 콘텐츠 바로 왼쪽(음수 left)에 절대 위치로 겹쳐 그려지므로,
+      // 커서가 grip 위에 있을 때 elementFromPoint는 그 아래 블록이 아니라 grip 자신을
+      // 돌려준다. 그걸 "호버할 블록 없음"으로 오인해 grip을 지워버리면(리렌더로 사라짐)
+      // 커서가 grip에 닿는 순간 자기 자신이 사라지는 자기모순이 생긴다 — 이 경우는 그냥
+      // 지금 hoveredBlock을 그대로 유지한다.
+      if (target && gripRef.current && (target === gripRef.current || gripRef.current.contains(target))) {
+        return;
+      }
+      const found = target && getDraggableBlockFromElement(target, view.dom);
+      if (!found) {
+        setHoveredBlock(null);
+        return;
+      }
+      const rect = found.node.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      setHoveredBlock({
+        id: found.id,
+        top: rect.top - wrapperRect.top,
+        left: rect.left - wrapperRect.left,
+      });
+    };
+
+    const onMove = (e: MouseEvent) => updateFromPoint(e.clientX, e.clientY);
+    const onLeave = (e: MouseEvent) => {
+      if (dragOriginRef.current) {
+        return;
+      }
+      // grip은 view.dom의 형제(sibling)로 그 바깥에 절대 위치로 그려지므로, 커서가 표
+      // 안쪽에서 grip 쪽으로 움직이면 "view.dom을 벗어났다"는 네이티브 mouseleave가 먼저
+      // 뜬다. relatedTarget(= 커서가 지금 향하는 엘리먼트)이 grip 자신이면, 그건 실제로
+      // grip에 도달한 것뿐이니 hoveredBlock을 지우지 않는다 — 지우면 커서가 grip에 닿는
+      // 순간 grip 자신이 리렌더로 사라지는 자기모순이 생긴다.
+      const related = e.relatedTarget as Node | null;
+      if (related && gripRef.current && (related === gripRef.current || gripRef.current.contains(related))) {
+        return;
+      }
+      setHoveredBlock(null);
+    };
+
+    // view.dom 자체에 붙인다 — TabPane 바깥 div의 stopPropagation보다 더 안쪽(자손)이라
+    // 그 stopPropagation과 무관하게 정상적으로 받는다(표 리사이즈·복사와 같은 이유).
+    view.dom.addEventListener("mousemove", onMove);
+    view.dom.addEventListener("mouseleave", onLeave);
+    return () => {
+      view.dom.removeEventListener("mousemove", onMove);
+      view.dom.removeEventListener("mouseleave", onLeave);
+    };
+  }, [subEditor]);
+
+  // mousemove/mouseup을 부모 에디터로 그냥 버블링시키면 BlockNote의 TableHandles 확장이
+  // pmView.dom(부모 에디터 루트 엘리먼트)에 달아둔 "bubble 단계" mousemove 리스너가 이 이벤트를
+  // 받아 서브 에디터 내부 block id를 부모 문서에서 찾다가 "Block with ID ... not found" 예외를
+  // 던진다 — 그래서 stopPropagation으로 원본 이벤트의 버블링 자체는 막는다.
+  //
+  // 하지만 표 컬럼/행 리사이즈(window.addEventListener, bubble/target 단계)와 표 셀 호버·
+  // 드래그-선택을 담당하는 TableHandlesController(같은 view.dom에 직접 붙는 리스너라 애초에
+  // stopPropagation의 영향을 안 받음, 재전달과 무관)는 정상 동작하려면 window/document에
+  // 다시 이벤트가 필요하다. 아래 두 디스패치로 나눠 재현한다:
+  //  1) window 자신을 target으로 디스패치 — resize가 window에서 직접 받는 이벤트라 이걸로 충분.
+  //  2) 실제 커서 아래 엘리먼트(document.elementFromPoint)를 target으로, bubbles:false로 디스패치.
+  //     capture 단계로 등록된 document 레벨 리스너들은 여전히 받지만(캡처링은 bubbles 여부와
+  //     무관하게 항상 일어남), bubble 단계로 등록된 부모 TableHandles의 pmView.dom 리스너는
+  //     받지 않는다. (단, BlockNote의 SideMenu 자체는 이렇게 이벤트가 정상 도달해도 여러 에디터
+  //     중 "가장 가까운 에디터"를 고르는 자체 로직 때문에 중첩 에디터에서는 뜨지 않는다 — 그건
+  //     아래 hoveredBlock 기반의 자체 드래그 핸들로 별도 해결한다.)
+  const forwardMouseEvent = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.dispatchEvent(
-      new MouseEvent(e.type, {
-        bubbles: false,
-        cancelable: true,
-        view: window,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        screenX: e.screenX,
-        screenY: e.screenY,
-        button: e.button,
-        buttons: e.buttons,
-        ctrlKey: e.ctrlKey,
-        shiftKey: e.shiftKey,
-        altKey: e.altKey,
-        metaKey: e.metaKey,
-      }),
-    );
+    const shared = {
+      cancelable: true,
+      view: window,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      screenX: e.screenX,
+      screenY: e.screenY,
+      button: e.button,
+      buttons: e.buttons,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+      metaKey: e.metaKey,
+    };
+    window.dispatchEvent(new MouseEvent(e.type, { ...shared, bubbles: false }));
+
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (target) {
+      target.dispatchEvent(new MouseEvent(e.type, { ...shared, bubbles: false }));
+    }
   };
 
   return (
     <div
+      ref={paneWrapperRef}
+      className="relative"
       // 이 안에서 일어나는 타이핑/조합(IME)/클릭 이벤트가 부모 에디터로
       // 버블링되어 부모의 "/" 슬래시 메뉴나 키맵과 충돌하지 않도록 막는다.
       // (content:"none" 블록 안의 실제 contentEditable 영역은 BlockNote
@@ -150,10 +281,42 @@ const TabPane = forwardRef<
       onCompositionStart={(e) => e.stopPropagation()}
       onCompositionEnd={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
-      onMouseMove={forwardToWindow}
-      onMouseUp={forwardToWindow}
+      onMouseMove={forwardMouseEvent}
+      onMouseUp={forwardMouseEvent}
     >
       <BlockNoteView editor={subEditor} theme="light" editable={isEditable} />
+      {isEditable && hoveredBlock && (
+        <div
+          ref={gripRef}
+          draggable
+          title="블록 이동"
+          // mousedown 시점부터(= 실제 dragstart가 발생하기 전, 임계 이동 구간부터) 얼려둔다.
+          // 그렇지 않으면 그 사이의 미세한 mousemove가 hoveredBlock을 바꾸거나 null로 만들어
+          // 이 grip 엘리먼트를 리렌더로 없애버리고, 드래그 소스가 사라지면서 브라우저가
+          // dragstart 자체를 내지 않거나 드래그를 중단시킨다.
+          onMouseDown={() => {
+            dragOriginRef.current = true;
+          }}
+          onDragStart={(e) => {
+            const block = subEditor.getBlock(hoveredBlock.id);
+            const sideMenu = subEditor.getExtension(SideMenuExtension);
+            if (!block || !sideMenu) return;
+            sideMenu.blockDragStart(e, block);
+          }}
+          onDragEnd={() => {
+            subEditor.getExtension(SideMenuExtension)?.blockDragEnd();
+            dragOriginRef.current = false;
+            setHoveredBlock(null);
+          }}
+          // 드래그 핸들 자체는 클릭/커서 이동 대상이 아니므로, hover 추적에 쓰는 mousemove
+          // 재전달(forwardMouseEvent)이 이 엘리먼트 위에서는 반복 트리거되지 않게 막는다.
+          onMouseMove={(e) => e.stopPropagation()}
+          className="absolute z-10 flex h-5 w-4 cursor-grab items-center justify-center rounded text-[var(--fg-muted)] hover:bg-[var(--hover)] active:cursor-grabbing"
+          style={{ top: hoveredBlock.top, left: hoveredBlock.left - 20 }}
+        >
+          ⠿
+        </div>
+      )}
     </div>
   );
 });
