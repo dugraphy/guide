@@ -10,6 +10,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { useTabSyncRegistry } from "../tabSyncContext";
 import { createResizableTableBlockSpec } from "./ResizableTableBlock";
 import { registerDragStateEditor } from "../dragStateRegistry";
+import { dndLog } from "../dragDebugLog";
 
 interface TabItem {
   title: string;
@@ -59,8 +60,10 @@ const TabPane = forwardRef<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     content: any[];
     isEditable: boolean;
+    // TEMP DIAGNOSTIC — 로그에서 "탭: <제목>"으로 구분하기 위한 이름표.
+    label: string;
   }
->(function TabPane({ content, isEditable }, ref) {
+>(function TabPane({ content, isEditable, label }, ref) {
   const subEditor = useCreateBlockNote({
     schema: tabContentSchema,
     initialContent: content.length > 0 ? content : undefined,
@@ -71,7 +74,7 @@ const TabPane = forwardRef<
   // 이 서브 에디터도 전역 드래그 상태 정리 대상으로 등록한다 — 자세한 이유는
   // dragStateRegistry.ts 참고(중단된 드래그의 pmView.dragging/isDragOrigin 잔여 상태가
   // 다음 드래그로 새어 들어가는 것을 막는다).
-  useEffect(() => registerDragStateEditor(subEditor), [subEditor]);
+  useEffect(() => registerDragStateEditor(subEditor, `탭: ${label}`), [subEditor, label]);
 
   // BlockNote 코어의 복사 핸들러(copyToClipboard)는 checkIfSelectionInNonEditableBlock으로
   // window.getSelection()의 조상을 타고 올라가며 contenteditable="false"를 찾는데, 멈추는
@@ -133,6 +136,22 @@ const TabPane = forwardRef<
   const paneWrapperRef = useRef<HTMLDivElement>(null);
   const gripRef = useRef<HTMLDivElement>(null);
   const dragOriginRef = useRef(false);
+
+  // TEMP DIAGNOSTIC — 그립(드래그 핸들)이 켜지고/꺼지는 순간을 타임스탬프와 함께 로그로
+  // 남긴다. 실제 드래그를 시도했는데 그립이 예상과 다른 타이밍에 사라지는지 확인하는 용도.
+  const prevHoveredIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prevId = prevHoveredIdRef.current;
+    const currId = hoveredBlock?.id ?? null;
+    if (prevId !== currId) {
+      if (currId) {
+        dndLog("grip-hover-on", `탭=${label} block=${currId}`);
+      } else {
+        dndLog("grip-hover-off", `탭=${label} prevBlock=${prevId ?? "?"}`);
+      }
+      prevHoveredIdRef.current = currId;
+    }
+  }, [hoveredBlock, label]);
 
   // 안전장치: grip을 눌렀다가(mousedown) 실제로는 드래그하지 않고 그냥 놓은 경우
   // dragstart/dragend가 아예 발생하지 않을 수 있다 — 그러면 dragOriginRef가 true로 영영
@@ -490,6 +509,7 @@ function TabGroupRenderer({
           ref={paneRef}
           content={tabs[activeTab]?.content ?? []}
           isEditable={!!editor.isEditable}
+          label={tabs[activeTab]?.title ?? `탭 ${activeTab + 1}`}
         />
       </div>
     </div>

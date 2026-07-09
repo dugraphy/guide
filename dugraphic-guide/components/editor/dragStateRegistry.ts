@@ -41,11 +41,15 @@
 //    잡아낼 수 있다.
 import type { BlockNoteEditor } from "@blocknote/core";
 import { showErrorToast } from "@/components/Toast";
+import { dndLog, dumpRecentDndLog } from "./dragDebugLog";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyEditor = BlockNoteEditor<any, any, any>;
 
 const registeredEditors = new Set<AnyEditor>();
+// TEMP DIAGNOSTIC — 각 등록된 에디터가 "메인"인지 "탭: <제목>"인지 사람이 읽을 수 있는
+// 이름. 로그에서 어느 에디터/탭에서 이벤트가 발생했는지 구분하기 위해서만 쓴다.
+const editorLabels = new Map<AnyEditor, string>();
 let cleanupListenerInstalled = false;
 
 function resetDragStateForAllEditors() {
@@ -147,11 +151,47 @@ function verifyAndRestoreIfNeeded(check: PendingCheck) {
   const missingIds = [...check.idsBefore].filter((id) => !idsAfter.has(id));
 
   if (missingIds.length > 0) {
+    dndLog("restore-triggered", `사라진 블록 id: [${missingIds.join(", ")}]`);
+    dumpRecentDndLog(`안전망 복원 발생 (사라진 블록: ${missingIds.join(", ")})`);
     restoreSnapshot(check.snapshot);
     showErrorToast(
       "드래그 중 내용이 손실될 뻔해 자동으로 되돌렸습니다. 다시 시도해주세요.",
     );
   }
+}
+
+// TEMP DIAGNOSTIC — 이벤트가 어느 에디터(메인/탭)에서 일어났는지, 어느 블록 위였는지를
+// 사람이 읽을 수 있는 한 줄로 요약한다. 원인 확정 후 dragDebugLog.ts와 함께 제거할 것.
+function findEditorLabel(target: EventTarget | null): string {
+  if (!(target instanceof Node)) {
+    return "?";
+  }
+  for (const [editor, label] of editorLabels) {
+    try {
+      if (editor.prosemirrorView?.dom.contains(target)) {
+        return label;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return "(등록된 에디터 밖)";
+}
+
+function findBlockId(target: EventTarget | null): string {
+  if (!(target instanceof Element)) {
+    return "?";
+  }
+  const el = target.closest('[data-node-type="blockContainer"]');
+  return el?.getAttribute("data-id") ?? "?";
+}
+
+function describeDragEvent(e: DragEvent): string {
+  const synthetic = (e as unknown as { synthetic?: boolean }).synthetic ? " SYNTHETIC" : "";
+  const label = findEditorLabel(e.target);
+  const blockId = findBlockId(e.target);
+  const types = e.dataTransfer ? Array.from(e.dataTransfer.types).join(",") : "";
+  return `target-editor=${label} block=${blockId} pos=(${Math.round(e.clientX)},${Math.round(e.clientY)}) dropEffect=${e.dataTransfer?.dropEffect ?? "?"} types=[${types}]${synthetic}`;
 }
 
 function installCleanupListenerOnce() {
@@ -165,6 +205,8 @@ function installCleanupListenerOnce() {
   document.addEventListener(
     "dragstart",
     (e) => {
+      const de = e as DragEvent;
+      dndLog("dragstart", describeDragEvent(de));
       if (isSynthetic(e)) {
         return;
       }
@@ -172,6 +214,7 @@ function installCleanupListenerOnce() {
       // 경우) 대비 — 새 드래그를 시작하기 전에 아직 확인되지 않은 이전 스냅샷이 남아있으면
       // 먼저 확인·필요시 복원부터 한다.
       if (pending) {
+        dndLog("dragstart", "이전 드래그의 pending 스냅샷이 아직 확인되지 않음 — 먼저 확인");
         verifyAndRestoreIfNeeded(pending);
         pending = null;
       }
@@ -179,6 +222,7 @@ function installCleanupListenerOnce() {
       resetDragStateForAllEditors();
 
       const { snapshot, idsBefore } = takeSnapshot();
+      dndLog("dragstart", `스냅샷 완료: 등록된 에디터 ${snapshot.size}개, 블록 id ${idsBefore.size}개`);
       let check: PendingCheck;
       // eslint-disable-next-line prefer-const
       check = {
@@ -188,6 +232,7 @@ function installCleanupListenerOnce() {
         // dragend도, 다음 dragstart도 안 오는 최악의 경우를 위한 하드 타임아웃.
         hardTimeoutId: setTimeout(() => {
           if (pending === check) {
+            dndLog("hard-timeout", "4000ms 동안 dragend가 오지 않아 타임아웃으로 확인");
             verifyAndRestoreIfNeeded(check);
             pending = null;
           }
@@ -198,9 +243,37 @@ function installCleanupListenerOnce() {
     true, // capture: BlockNote 자신의 (bubble 단계) dragstart 리스너보다 항상 먼저 실행되도록.
   );
 
+  // dragover는 몇 ms마다 계속 발생해 매번 로그하면 콘솔이 넘친다 — "커서가 가리키는
+  // 에디터(target-editor)가 바뀐 순간"만, 즉 탭 경계를 넘나드는 순간만 로그한다.
+  let lastDragoverLabel: string | null = null;
+  document.addEventListener(
+    "dragover",
+    (e) => {
+      const de = e as DragEvent;
+      const label = findEditorLabel(de.target);
+      if (label !== lastDragoverLabel) {
+        dndLog("dragover(경계 변경)", `${lastDragoverLabel ?? "(없음)"} → ${label} | ${describeDragEvent(de)}`);
+        lastDragoverLabel = label;
+      }
+    },
+    true,
+  );
+
+  document.addEventListener(
+    "drop",
+    (e) => {
+      const de = e as DragEvent;
+      dndLog("drop", describeDragEvent(de));
+    },
+    true,
+  );
+
   document.addEventListener(
     "dragend",
     (e) => {
+      const de = e as DragEvent;
+      dndLog("dragend", describeDragEvent(de));
+      lastDragoverLabel = null;
       if (isSynthetic(e) || !pending) {
         return;
       }
@@ -221,11 +294,15 @@ function installCleanupListenerOnce() {
 /**
  * 메인 에디터/탭 서브 에디터가 마운트될 때 호출한다. 이 에디터를 전역 드래그 상태 정리·안전망
  * 대상으로 등록하고, cleanup(useEffect의 반환값)에서 해제한다.
+ *
+ * label은 TEMP DIAGNOSTIC 로그에서 "메인"/"탭: xxx"처럼 사람이 읽을 수 있는 이름으로만 쓰인다.
  */
-export function registerDragStateEditor(editor: AnyEditor): () => void {
+export function registerDragStateEditor(editor: AnyEditor, label: string = "?"): () => void {
   installCleanupListenerOnce();
   registeredEditors.add(editor);
+  editorLabels.set(editor, label);
   return () => {
     registeredEditors.delete(editor);
+    editorLabels.delete(editor);
   };
 }
