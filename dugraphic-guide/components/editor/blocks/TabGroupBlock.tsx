@@ -11,29 +11,6 @@ import { useTabSyncRegistry } from "../tabSyncContext";
 import { createResizableTableBlockSpec } from "./ResizableTableBlock";
 import { registerDragStateEditor } from "../dragStateRegistry";
 
-// BlockNote 코어의 getDraggableBlockFromElement(extensions/getDraggableBlockFromElement.ts)와
-// 동일한 로직 — export되지 않아 그대로 옮겨왔다. 커서 아래 DOM 엘리먼트에서 가장 가까운
-// "블록 하나" 단위(data-node-type="blockContainer")를 찾는다.
-function getDraggableBlockFromElement(
-  element: Element | null,
-  viewDom: HTMLElement,
-): { node: HTMLElement; id: string } | undefined {
-  let el = element;
-  while (
-    el &&
-    el.parentElement &&
-    el.parentElement !== viewDom &&
-    el.getAttribute?.("data-node-type") !== "blockContainer"
-  ) {
-    el = el.parentElement;
-  }
-  if (!el || el.getAttribute?.("data-node-type") !== "blockContainer") {
-    return undefined;
-  }
-  const id = el.getAttribute("data-id");
-  return id ? { node: el as HTMLElement, id } : undefined;
-}
-
 interface TabItem {
   title: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -169,68 +146,99 @@ const TabPane = forwardRef<
     return () => document.removeEventListener("mouseup", onGlobalMouseUp);
   }, []);
 
-  useEffect(() => {
+  // grip은 실제 블록 콘텐츠 왼쪽 바깥(음수 left)에 절대 위치로 겹쳐 그려지는데, 그 사이에는
+  // 그립도 아니고 블록 콘텐츠도 아닌 좁은 틈(gutter)이 있다. 예전 구현은 view.dom에만
+  // mousemove/mouseleave를 붙이고 elementFromPoint로 "정확히 그 픽셀 위 엘리먼트"를 찾았는데,
+  // 커서가 그 틈을 지나는 순간(블록→그립으로 옆으로 살짝만 움직여도) elementFromPoint가
+  // 그립도 블록도 아닌 제3의 엘리먼트(빈 여백)를 돌려주면서 hoveredBlock이 즉시 null이 되어
+  // 그립이 사라져버렸다 — 그립을 클릭하기도 전에 꺼지는 문제였다. 대신 각 블록의
+  // getBoundingClientRect()를 직접 스캔해 "블록의 세로 범위 안 + 블록 왼쪽 끝에서 그립을
+  // 넉넉히 포함하는 가로 범위 안"이면 무조건 같은 블록으로 판정하는 좌표 기반 히트테스트로
+  // 바꾼다. 그립과 블록 사이의 틈이 이 히트박스 안에 통째로 포함되므로 더 이상 끊기지 않는다.
+  const GUTTER_PX = 32; // 그립 폭(16px) + 그립 오프셋(20px) + 여유(약간의 버퍼)를 넉넉히 덮는다.
+
+  const updateHoverFromPoint = (clientX: number, clientY: number) => {
+    // 드래그가 진행 중일 때는 호버 상태를 건드리지 않는다 — 안 그러면 드래그 중 커서가
+    // 그립 버튼 바깥(예: 실제로 옮기려는 표 위)으로 움직이는 순간 hoveredBlock이 바뀌거나
+    // null이 되면서 이 grip 엘리먼트가 리렌더로 사라져, 브라우저가 진행 중이던 네이티브
+    // 드래그를 그 자리에서 취소해버린다.
+    if (dragOriginRef.current) {
+      return;
+    }
     const view = subEditor.prosemirrorView;
     const wrapper = paneWrapperRef.current;
-    if (!view || !wrapper) return;
+    if (!view || !wrapper) {
+      return;
+    }
+    const containers = view.dom.querySelectorAll('[data-node-type="blockContainer"]');
+    let best: { id: string; rect: DOMRect } | null = null;
+    for (const el of containers) {
+      const rect = el.getBoundingClientRect();
+      if (clientY < rect.top || clientY > rect.bottom) {
+        continue;
+      }
+      if (clientX < rect.left - GUTTER_PX || clientX > rect.right) {
+        continue;
+      }
+      // 여러 블록이 겹쳐 매치되면(중첩 블록 등) 세로 폭이 가장 좁은, 즉 가장 안쪽 블록을 우선한다.
+      if (!best || rect.height < best.rect.height) {
+        const id = el.getAttribute("data-id");
+        if (id) {
+          best = { id, rect };
+        }
+      }
+    }
+    if (!best) {
+      setHoveredBlock(null);
+      return;
+    }
+    const wrapperRect = wrapper.getBoundingClientRect();
+    setHoveredBlock({
+      id: best.id,
+      top: best.rect.top - wrapperRect.top,
+      left: best.rect.left - wrapperRect.left,
+    });
+  };
 
-    const updateFromPoint = (clientX: number, clientY: number) => {
-      // 드래그가 진행 중일 때는 호버 상태를 건드리지 않는다 — 안 그러면 드래그 중
-      // 커서가 grip 버튼 바깥(예: 실제로 옮기려는 표 위)으로 움직이는 순간 hoveredBlock이
-      // 바뀌거나 null이 되면서 이 grip 엘리먼트가 리렌더로 사라져, 브라우저가 진행 중이던
-      // 네이티브 드래그를 그 자리에서 취소해버린다(드래그 소스 엘리먼트가 DOM에서 없어지면
-      // dragstart 자체가 발생하지 않거나 드래그가 중단된다).
+  // 위 히트테스트를 실제로 구동하는 좌표 소스. wrapper나 view.dom에 이벤트를 붙이면 그
+  // 엘리먼트 "자기 자신의 레이아웃 박스"를 벗어나는 순간(그립이 절대 위치·음수 offset으로
+  // 그 박스 바깥에 겹쳐 그려지는 경우 포함) 브라우저가 mouseleave를 먼저 쏴버릴 수 있어
+  // DOM 계층 구조에 좌우된다. 그 대신 document 레벨에서 좌표만 계속 흘려받고, "이 탭
+  // 페인의 영역(그립 여유폭 포함) 안인가"는 위 updateHoverFromPoint의 순수 좌표 비교로만
+  // 판정한다 — 어떤 엘리먼트가 그 픽셀을 그렸는지와 무관하게 항상 일관되게 동작한다.
+  //
+  // ⚠️ capture 단계(true)로 등록해야 한다 — 아래 forwardMouseEvent(wrapper의 bubble 단계
+  // onMouseMove)와 그립 자신의 onMouseMove가 둘 다 e.stopPropagation()을 호출해서(표
+  // 리사이즈·TableHandles 재전달 로직과의 충돌을 막기 위함), bubble 단계로 등록하면 탭
+  // 페인 내부에서 일어나는 mousemove 대부분이 이 리스너에 아예 도달하지 못해 그립이
+  // 영영 나타나지 않는다. capture는 그 stopPropagation보다 먼저(하강 단계에) 실행되므로
+  // 항상 좌표를 받는다.
+  useEffect(() => {
+    const onDocMouseMove = (e: MouseEvent) => {
       if (dragOriginRef.current) {
         return;
       }
-      const target = document.elementFromPoint(clientX, clientY);
-      // grip 자신은 실제 블록 콘텐츠 바로 왼쪽(음수 left)에 절대 위치로 겹쳐 그려지므로,
-      // 커서가 grip 위에 있을 때 elementFromPoint는 그 아래 블록이 아니라 grip 자신을
-      // 돌려준다. 그걸 "호버할 블록 없음"으로 오인해 grip을 지워버리면(리렌더로 사라짐)
-      // 커서가 grip에 닿는 순간 자기 자신이 사라지는 자기모순이 생긴다 — 이 경우는 그냥
-      // 지금 hoveredBlock을 그대로 유지한다.
-      if (target && gripRef.current && (target === gripRef.current || gripRef.current.contains(target))) {
+      const wrapper = paneWrapperRef.current;
+      if (!wrapper) {
         return;
       }
-      const found = target && getDraggableBlockFromElement(target, view.dom);
-      if (!found) {
+      const wrapperRect = wrapper.getBoundingClientRect();
+      // 이 탭 페인의 세로 범위 + (그립을 포함하는) 가로 범위를 완전히 벗어났으면 빠르게
+      // hoveredBlock을 지운다 — 그 안이면 정확한 블록은 updateHoverFromPoint가 판정한다.
+      if (
+        e.clientY < wrapperRect.top ||
+        e.clientY > wrapperRect.bottom ||
+        e.clientX < wrapperRect.left - GUTTER_PX ||
+        e.clientX > wrapperRect.right
+      ) {
         setHoveredBlock(null);
         return;
       }
-      const rect = found.node.getBoundingClientRect();
-      const wrapperRect = wrapper.getBoundingClientRect();
-      setHoveredBlock({
-        id: found.id,
-        top: rect.top - wrapperRect.top,
-        left: rect.left - wrapperRect.left,
-      });
+      updateHoverFromPoint(e.clientX, e.clientY);
     };
-
-    const onMove = (e: MouseEvent) => updateFromPoint(e.clientX, e.clientY);
-    const onLeave = (e: MouseEvent) => {
-      if (dragOriginRef.current) {
-        return;
-      }
-      // grip은 view.dom의 형제(sibling)로 그 바깥에 절대 위치로 그려지므로, 커서가 표
-      // 안쪽에서 grip 쪽으로 움직이면 "view.dom을 벗어났다"는 네이티브 mouseleave가 먼저
-      // 뜬다. relatedTarget(= 커서가 지금 향하는 엘리먼트)이 grip 자신이면, 그건 실제로
-      // grip에 도달한 것뿐이니 hoveredBlock을 지우지 않는다 — 지우면 커서가 grip에 닿는
-      // 순간 grip 자신이 리렌더로 사라지는 자기모순이 생긴다.
-      const related = e.relatedTarget as Node | null;
-      if (related && gripRef.current && (related === gripRef.current || gripRef.current.contains(related))) {
-        return;
-      }
-      setHoveredBlock(null);
-    };
-
-    // view.dom 자체에 붙인다 — TabPane 바깥 div의 stopPropagation보다 더 안쪽(자손)이라
-    // 그 stopPropagation과 무관하게 정상적으로 받는다(표 리사이즈·복사와 같은 이유).
-    view.dom.addEventListener("mousemove", onMove);
-    view.dom.addEventListener("mouseleave", onLeave);
-    return () => {
-      view.dom.removeEventListener("mousemove", onMove);
-      view.dom.removeEventListener("mouseleave", onLeave);
-    };
+    document.addEventListener("mousemove", onDocMouseMove, true);
+    return () => document.removeEventListener("mousemove", onDocMouseMove, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subEditor]);
 
   // mousemove/mouseup을 부모 에디터로 그냥 버블링시키면 BlockNote의 TableHandles 확장이
