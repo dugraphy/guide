@@ -285,19 +285,28 @@ const TabPane = forwardRef<
       onMouseUp={forwardMouseEvent}
     >
       <BlockNoteView editor={subEditor} theme="light" editable={isEditable} />
-      {isEditable && hoveredBlock && (
+      {isEditable && (
         <div
           ref={gripRef}
-          draggable
+          // 네이티브 HTML5 드래그는 이벤트를 처음 받은(dragstart) DOM 엘리먼트를 그 드래그의
+          // "소스"로 계속 참조한다. hoveredBlock이 null이 될 때마다(다른 블록으로 이동, 탭
+          // 밖으로 이탈 등) 이 엘리먼트를 조건부 렌더로 언마운트했다가 재마운트하면, 드래그가
+          // 진행되는 도중에라도 그 소스 엘리먼트가 DOM에서 사라지는 순간이 생길 수 있고,
+          // 브라우저에 따라 이를 드래그 중단으로 처리할 위험이 있다. 그래서 엘리먼트 자체는
+          // 항상 마운트해두고, 보이는지/드래그 가능한지만 hoveredBlock 유무로 토글한다.
+          draggable={!!hoveredBlock}
           title="블록 이동"
           // mousedown 시점부터(= 실제 dragstart가 발생하기 전, 임계 이동 구간부터) 얼려둔다.
           // 그렇지 않으면 그 사이의 미세한 mousemove가 hoveredBlock을 바꾸거나 null로 만들어
-          // 이 grip 엘리먼트를 리렌더로 없애버리고, 드래그 소스가 사라지면서 브라우저가
-          // dragstart 자체를 내지 않거나 드래그를 중단시킨다.
+          // 이 grip의 위치/가시성이 리렌더로 바뀌고, 드래그 소스 취급이 흔들릴 수 있다.
           onMouseDown={() => {
             dragOriginRef.current = true;
           }}
           onDragStart={(e) => {
+            if (!hoveredBlock) {
+              e.preventDefault();
+              return;
+            }
             const block = subEditor.getBlock(hoveredBlock.id);
             const sideMenu = subEditor.getExtension(SideMenuExtension);
             if (!block || !sideMenu) return;
@@ -311,8 +320,12 @@ const TabPane = forwardRef<
           // 드래그 핸들 자체는 클릭/커서 이동 대상이 아니므로, hover 추적에 쓰는 mousemove
           // 재전달(forwardMouseEvent)이 이 엘리먼트 위에서는 반복 트리거되지 않게 막는다.
           onMouseMove={(e) => e.stopPropagation()}
-          className="absolute z-10 flex h-5 w-4 cursor-grab items-center justify-center rounded text-[var(--fg-muted)] hover:bg-[var(--hover)] active:cursor-grabbing"
-          style={{ top: hoveredBlock.top, left: hoveredBlock.left - 20 }}
+          className="absolute z-10 flex h-5 w-4 items-center justify-center rounded text-[var(--fg-muted)] hover:bg-[var(--hover)] active:cursor-grabbing"
+          style={
+            hoveredBlock
+              ? { top: hoveredBlock.top, left: hoveredBlock.left - 20, cursor: "grab" }
+              : { top: -9999, left: -9999, pointerEvents: "none", visibility: "hidden" }
+          }
         >
           ⠿
         </div>
