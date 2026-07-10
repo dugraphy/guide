@@ -6,7 +6,7 @@ import { BlockNoteSchema, defaultBlockSpecs, selectedFragmentToHTML } from "@blo
 import { SideMenuExtension } from "@blocknote/core/extensions";
 import "@blocknote/mantine/style.css";
 import type React from "react";
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { useTabSyncRegistry } from "../tabSyncContext";
 import { createResizableTableBlockSpec } from "./ResizableTableBlock";
 import { registerDragStateEditor } from "../dragStateRegistry";
@@ -31,6 +31,33 @@ function parseTabs(raw: string): TabItem[] {
     // fall through to default
   }
   return DEFAULT_TABS;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getBlockPlainText(block: any): string {
+  if (!Array.isArray(block?.content)) return "";
+  return block.content
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((item: any) => (typeof item?.text === "string" ? item.text : ""))
+    .join("")
+    .trim();
+}
+
+// "기본" 표 바로 다음 블록부터 탭 끝까지를 하나의 접이식 묶음으로 묶는다. "기본" 헤딩
+// 뒤에 새 표/섹션이 추가돼도 이 함수가 매번 서브 에디터 문서를 다시 훑기 때문에
+// 별도 설정 없이 자동으로 같은 묶음에 포함된다. "기본" 헤딩이 없는 탭(예: 이 패턴을
+// 쓰지 않는 다른 tabGroup)에서는 아무것도 숨기지 않는다.
+function computeAccordionSection(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  doc: readonly any[],
+): { anchorBlockId: string | null; hiddenBlockIds: string[] } {
+  const headingIndex = doc.findIndex((b) => b.type === "heading" && getBlockPlainText(b) === "기본");
+  if (headingIndex === -1 || headingIndex + 1 >= doc.length) {
+    return { anchorBlockId: null, hiddenBlockIds: [] };
+  }
+  const anchorBlock = doc[headingIndex + 1];
+  const hiddenBlockIds = doc.slice(headingIndex + 2).map((b) => b.id);
+  return { anchorBlockId: anchorBlock.id, hiddenBlockIds };
 }
 
 // 탭 안에서 문단/표/리스트 등을 자유롭게 쓸 수 있도록 별도의 하위 BlockNote
@@ -213,6 +240,24 @@ const TabPane = forwardRef<
   const gripRef = useRef<HTMLDivElement>(null);
   const dragOriginRef = useRef(false);
 
+  // "기본" 표 아래 전체를 하나로 묶는 접기/펼치기. 순수하게 CSS display로만 감추고
+  // 서브 에디터의 문서(subEditor.document)나 블록 스키마는 전혀 건드리지 않는다 —
+  // 드래그 세이프티넷·IME 동기화 이슈가 이 서브 에디터에서 반복됐던 이력이 있어서
+  // (드래그 상태 레지스트리, compositionupdate 격리 등 위 코드 참고), 문서 모델을
+  // 바꾸는 방식 대신 렌더링 결과 위에 얹는 방식을 택했다. 탭을 전환하면 이 TabPane
+  // 자체가 (부모의 key={activeTab}에 의해) 언마운트/재마운트되므로 collapsed 상태는
+  // 탭마다 항상 독립적으로 초기화된다.
+  const [collapsed, setCollapsed] = useState(true);
+  const [accordion, setAccordion] = useState(() => computeAccordionSection(subEditor.document));
+  const accordionScopeId = useId();
+
+  useEffect(() => {
+    const recompute = () => setAccordion(computeAccordionSection(subEditor.document));
+    recompute();
+    // 편집 중 "기본" 아래에 표/섹션을 추가·삭제해도 즉시 다시 계산해 묶음에 반영한다.
+    return subEditor.onChange(() => recompute());
+  }, [subEditor]);
+
   // TEMP DIAGNOSTIC — 그립(드래그 핸들)이 켜지고/꺼지는 순간을 타임스탬프와 함께 로그로
   // 남긴다. 실제 드래그를 시도했는데 그립이 예상과 다른 타이밍에 사라지는지 확인하는 용도.
   const prevHoveredIdRef = useRef<string | null>(null);
@@ -380,6 +425,7 @@ const TabPane = forwardRef<
     <div
       ref={paneWrapperRef}
       className="relative"
+      data-tabpane-accordion-scope={accordionScopeId}
       // 이 안에서 일어나는 타이핑/조합(IME)/클릭 이벤트가 부모 에디터로
       // 버블링되어 부모의 "/" 슬래시 메뉴나 키맵과 충돌하지 않도록 막는다.
       // (content:"none" 블록 안의 실제 contentEditable 영역은 BlockNote
@@ -403,6 +449,25 @@ const TabPane = forwardRef<
       onMouseUp={forwardMouseEvent}
     >
       <BlockNoteView editor={subEditor} theme="light" editable={isEditable} />
+      {accordion.anchorBlockId && accordion.hiddenBlockIds.length > 0 && (
+        <>
+          {collapsed && (
+            <style>{`${accordion.hiddenBlockIds
+              .map(
+                (id) =>
+                  `[data-tabpane-accordion-scope="${accordionScopeId}"] [data-node-type="blockContainer"][data-id="${id}"]`,
+              )
+              .join(",\n")} { display: none !important; }`}</style>
+          )}
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            className="my-1 text-sm font-medium text-[var(--accent)] hover:underline"
+          >
+            {collapsed ? "자세히 보기 +" : "접기 -"}
+          </button>
+        </>
+      )}
       {isEditable && (
         <div
           ref={gripRef}
