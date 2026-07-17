@@ -12,6 +12,7 @@ import { todoSpec } from "./blocks/TodoBlock";
 import { pricingCardsSpec } from "./blocks/PricingCardsBlock";
 import { calloutBoxSpec } from "./blocks/CalloutBoxBlock";
 import { tabGroupSpec } from "./blocks/TabGroupBlock";
+import { domainSearchSpec } from "./blocks/DomainSearchBlock";
 import { createResizableTableBlockSpec } from "./blocks/ResizableTableBlock";
 import type { TemplateRow } from "@/lib/templates";
 import { TabSyncContext, type TabFlushRegistry } from "./tabSyncContext";
@@ -28,6 +29,7 @@ const schema = BlockNoteSchema.create({
     pricingCards: pricingCardsSpec,
     calloutBox: calloutBoxSpec,
     tabGroup: tabGroupSpec,
+    domainSearch: domainSearchSpec,
   },
 });
 
