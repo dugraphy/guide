@@ -2,6 +2,7 @@
 
 import { createReactBlockSpec } from "@blocknote/react";
 import { useState } from "react";
+import { Search, ArrowRight } from "lucide-react";
 
 // 가비아 도메인 검색은 GET 쿼리 파라미터로 검색어를 받지 않는다 — 실제로
 // domain.gabia.com 메인 페이지의 검색 폼은 POST로 new_domain 필드를
@@ -42,7 +43,8 @@ function DomainSearchRenderer() {
 
   return (
     <div contentEditable={false} className="my-1 w-full">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg)] py-1 pr-1 pl-4 transition-shadow duration-150 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_18%,transparent)]">
+        <Search className="h-4 w-4 shrink-0 text-[var(--fg-muted)]" strokeWidth={2} />
         <input
           value={domain}
           onChange={(e) => setDomain(e.target.value)}
@@ -51,14 +53,15 @@ function DomainSearchRenderer() {
             if (e.key === "Enter") handleSearch();
           }}
           placeholder="원하는 도메인을 입력하세요 예: mysite.com"
-          className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-[var(--fg)] outline-none placeholder:text-[var(--fg-muted)]"
         />
         <button
           type="button"
           onClick={handleSearch}
-          className="shrink-0 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
           가비아에서 가격 확인하기
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
       </div>
     </div>
