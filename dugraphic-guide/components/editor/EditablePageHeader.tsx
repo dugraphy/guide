@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from "react";
 
-export type SaveStatus = "idle" | "saving" | "saved";
+// idle(기본, 변경사항 없음) → dirty(저장 필요, 변경사항 있음) → saving(저장 중) → idle(저장 완료)
+export type SaveStatus = "idle" | "dirty" | "saving";
 
 const SAVE_LABEL: Record<SaveStatus, string> = {
   idle: "저장",
+  dirty: "저장 필요",
   saving: "저장 중...",
-  saved: "저장됨 ✓",
 };
 
 interface Props {
@@ -52,10 +53,10 @@ export default function EditablePageHeader({
           <button
             onClick={onSave}
             disabled={saveStatus === "saving"}
-            className={`shrink-0 ml-4 text-xs px-3 py-1.5 rounded font-medium transition-all duration-150
+            className={`shrink-0 ml-4 text-xs px-3 py-1.5 rounded font-medium transition-colors duration-150
               ${
-                saveStatus === "saved"
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                saveStatus === "dirty" || saveStatus === "saving"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
                   : "bg-[var(--hover)] text-[var(--fg-muted)] hover:bg-[var(--active)] hover:text-[var(--fg)]"
               }
               disabled:opacity-50 disabled:cursor-not-allowed`}

@@ -16,6 +16,7 @@ import { domainSearchSpec } from "./blocks/DomainSearchBlock";
 import { createResizableTableBlockSpec } from "./blocks/ResizableTableBlock";
 import type { TemplateRow } from "@/lib/templates";
 import { TabSyncContext, type TabFlushRegistry } from "./tabSyncContext";
+import { EditorDirtyContext } from "./editorDirtyContext";
 import { registerDragStateEditor } from "./dragStateRegistry";
 
 // Custom schema — defined at module level so the reference stays stable across renders
@@ -60,9 +61,13 @@ interface Props {
   // (BlockEditor는 next/dynamic으로 로드되어 ref를 안정적으로 통과시키기
   // 어려우므로 콜백 prop으로 노출한다.)
   registerGetBody?: (getBody: () => string) => void;
+  // 문서 내용이 바뀔 때마다(제목 입력과 별개로) 호출된다 — 저장 버튼을
+  // "저장 필요" 상태로 즉시 전환하기 위함. 부모에서 useCallback(빈 deps)로
+  // 안정된 참조를 넘겨야 이 무거운 에디터가 매번 리렌더되지 않는다.
+  onDirtyChange?: () => void;
 }
 
-function BlockEditor({ page, editable = true, registerGetBody }: Props) {
+function BlockEditor({ page, editable = true, registerGetBody, onDirtyChange }: Props) {
   const [templates, setTemplates] = useState<TemplateRow[]>([]);
 
   // useCreateBlockNote는 initialContent를 최초 마운트 시 1회만 사용하지만(내부적으로
@@ -93,6 +98,11 @@ function BlockEditor({ page, editable = true, registerGetBody }: Props) {
   }, [registerGetBody, editor]);
 
   useEffect(() => {
+    if (!onDirtyChange) return;
+    return editor.onChange(() => onDirtyChange());
+  }, [editor, onDirtyChange]);
+
+  useEffect(() => {
     if (!editable) return;
     fetch("/api/templates")
       .then((r) => r.json())
@@ -106,6 +116,7 @@ function BlockEditor({ page, editable = true, registerGetBody }: Props) {
   useEffect(() => registerDragStateEditor(editor, "메인"), [editor]);
 
   return (
+    <EditorDirtyContext.Provider value={onDirtyChange ?? null}>
     <TabSyncContext.Provider value={flushRegistryRef}>
       <BlockNoteView
         editor={editor}
@@ -187,6 +198,7 @@ function BlockEditor({ page, editable = true, registerGetBody }: Props) {
       )}
     </BlockNoteView>
     </TabSyncContext.Provider>
+    </EditorDirtyContext.Provider>
   );
 }
 

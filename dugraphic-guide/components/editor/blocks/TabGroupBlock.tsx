@@ -8,6 +8,7 @@ import "@blocknote/mantine/style.css";
 import type React from "react";
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { useTabSyncRegistry } from "../tabSyncContext";
+import { useMarkEditorDirty } from "../editorDirtyContext";
 import { createResizableTableBlockSpec } from "./ResizableTableBlock";
 import { registerDragStateEditor } from "../dragStateRegistry";
 import { dndLog } from "../dragDebugLog";
@@ -101,6 +102,15 @@ const TabPane = forwardRef<
   });
 
   useImperativeHandle(ref, () => ({ getDocument: () => subEditor.document }), [subEditor]);
+
+  // 탭 서브 에디터는 평소 부모 문서와 분리돼 있어(위 flushActivePane 관련 주석 참고)
+  // 타이핑해도 메인 에디터의 onChange가 울리지 않는다 — 저장 버튼이 "저장 필요"로
+  // 즉시 바뀌려면 여기서도 별도로 dirty를 알려야 한다.
+  const markDirty = useMarkEditorDirty();
+  useEffect(() => {
+    if (!markDirty) return;
+    return subEditor.onChange(() => markDirty());
+  }, [subEditor, markDirty]);
 
   // 이 서브 에디터도 전역 드래그 상태 정리 대상으로 등록한다 — 자세한 이유는
   // dragStateRegistry.ts 참고(중단된 드래그의 pmView.dragging/isDragOrigin 잔여 상태가
