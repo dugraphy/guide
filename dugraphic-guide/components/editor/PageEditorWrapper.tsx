@@ -91,7 +91,7 @@ export default function PageEditorWrapper({ page: initialPage, isNew, canEdit }:
         saveStatus={saveStatus}
         readOnly={!canEdit}
       />
-      <div className="px-8 py-4">
+      <div className="px-8 py-4" data-page-slug={initialPage.slug}>
         <div className="border-t border-[var(--border)] mb-4" />
         <BlockEditor
           page={initialPage}

@@ -472,7 +472,7 @@ const TabPane = forwardRef<
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
-            className="my-1 text-sm font-medium text-[var(--accent)] hover:underline"
+            className="my-1 inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--accent)] transition-colors hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)]"
           >
             {collapsed ? "자세히 보기 +" : "접기 -"}
           </button>
@@ -613,7 +613,7 @@ function TabGroupRenderer({
                 <div className="grid">
                   <span
                     aria-hidden
-                    className="invisible col-start-1 row-start-1 whitespace-nowrap px-4 py-2 text-sm font-medium"
+                    className="invisible col-start-1 row-start-1 whitespace-nowrap px-4 py-2 text-sm font-semibold"
                   >
                     {tab.title || " "}
                   </span>
@@ -622,17 +622,17 @@ function TabGroupRenderer({
                     onChange={(e) => renameTab(i, e.target.value)}
                     onKeyDown={(e) => e.stopPropagation()}
                     size={1}
-                    className="col-start-1 row-start-1 min-w-0 w-full border-b-2 border-[var(--accent)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--accent)] outline-none"
+                    className="col-start-1 row-start-1 min-w-0 w-full rounded-full bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] px-4 py-2 text-sm font-semibold text-[var(--accent)] outline-none"
                   />
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => switchTab(i)}
-                  className={`whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors ${
                     isActive
-                      ? "border-[var(--accent)] text-[var(--accent)]"
-                      : "border-transparent text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                      ? "bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] font-semibold text-[var(--accent)]"
+                      : "font-medium text-[var(--fg-muted)] hover:bg-[var(--hover)] hover:text-[var(--fg)]"
                   }`}
                 >
                   {tab.title}

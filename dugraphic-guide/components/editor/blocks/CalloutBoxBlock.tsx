@@ -31,12 +31,12 @@ function CalloutBoxRenderer({
   return (
     <div
       contentEditable={false}
-      className="my-1 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4"
+      className="my-1 w-full rounded-lg border border-[var(--border)] border-l-[3px] border-l-[var(--accent)] bg-[var(--bg-secondary)] p-4"
     >
       <div className="flex flex-col gap-1.5">
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-2 text-xs">
-            <span className="mt-0.5 text-[var(--fg-muted)]">•</span>
+            <span className="mt-0.5 text-[var(--accent)]">•</span>
             <input
               value={item}
               disabled={!editor.isEditable}

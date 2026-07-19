@@ -103,3 +103,49 @@
   background: var(--accent);
   height: 2px;
 }
+
+/* ── 가격정책 페이지 전용 시각 강화 ──────────────────────────────────────
+   위 조항 제목·표 규칙은 환불정책(heading level 3)·할일목록(table)과도
+   공유되므로, [data-page-slug]로 범위를 가격정책 페이지 하나로 좁혀
+   다른 템플릿 화면에는 영향이 가지 않게 한다. */
+
+/* 제목 앞 세로 바 임팩트 강화 + 제목 자체도 한 단계 굵고 크게 */
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="heading"][data-level="3"] {
+  border-left-width: 5px;
+  padding-left: 14px;
+  font-size: 1.5em;
+  font-weight: 800;
+}
+
+/* 표 헤더 행 — 셀 본문 텍스트보다 굵기·크기를 한 단계 더 올려 위계를 분명히 한다 */
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] tr:first-child th,
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] tr:first-child td {
+  font-weight: 700;
+  font-size: 0.95em;
+  letter-spacing: 0.01em;
+}
+
+/* 표 셀 패딩을 넉넉하게 — 페이지 전체 여백감과 표 안쪽 밀도 사이 대비를 줄인다 */
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] th,
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] td {
+  padding: 13px 18px;
+}
+
+/* 조항 제목 바로 다음 문단(표 위 설명 문구)은 셀 텍스트보다 낮은 위계로 —
+   작고 옅은 톤. 헤딩 바로 뒤에 오는 첫 문단에만 적용되므로 표 안 설명
+   문구와 헷갈리지 않는다. */
+[data-page-slug="page-1783326349328"] .bn-editor
+  .bn-block-outer:has(> .bn-block > .bn-block-content[data-content-type="heading"][data-level="3"])
+  + .bn-block-outer
+  .bn-block-content[data-content-type="paragraph"] {
+  font-size: 0.85em;
+  color: var(--fg-muted);
+}
+
+/* 가격 숫자 강조 — 콘텐츠에서 브랜드 accent와 동일한 rgb 값을 textColor로
+   지정한 텍스트에만 매칭되는 표시자. 볼드는 콘텐츠 쪽 styles.bold로 이미
+   지정하고, 색만 여기서 확실히 브랜드 블루로 고정한다. */
+[data-page-slug="page-1783326349328"] .bn-editor [data-text-color="rgb(46, 170, 220)"] {
+  color: var(--accent) !important;
+  font-weight: 700;
+}
