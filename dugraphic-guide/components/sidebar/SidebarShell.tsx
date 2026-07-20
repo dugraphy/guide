@@ -65,19 +65,9 @@ export default function SidebarShell({ header, children }: Props) {
       >
         <div className="flex flex-col h-full w-60 shrink-0 overflow-y-auto">
           <div className="flex items-center border-b border-[var(--border)] shrink-0">
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-              title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-              className="hidden md:flex items-center justify-center w-14 py-3 shrink-0 text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
-            >
-              {collapsed ? <PanelLeft size={17} /> : <PanelLeftClose size={17} />}
-            </button>
-
             <div
-              className={`flex items-center py-3 px-3 md:pl-0 md:pr-3 flex-1 min-w-0 transition-opacity duration-150 ${
-                collapsed ? "md:opacity-0 md:pointer-events-none" : "opacity-100"
+              className={`flex items-center py-3 pl-3 flex-1 min-w-0 transition-opacity duration-150 ${
+                collapsed ? "order-2 md:opacity-0 md:pointer-events-none" : "order-1 opacity-100"
               }`}
             >
               {header}
@@ -85,9 +75,21 @@ export default function SidebarShell({ header, children }: Props) {
 
             <button
               type="button"
+              onClick={toggleCollapsed}
+              aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+              title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+              className={`hidden md:flex items-center justify-center w-14 py-3 shrink-0 text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors ${
+                collapsed ? "order-1" : "order-2"
+              }`}
+            >
+              {collapsed ? <PanelLeft size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+
+            <button
+              type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="메뉴 닫기"
-              className="md:hidden flex items-center justify-center w-9 h-9 mr-2 shrink-0 text-[var(--fg-muted)] hover:text-[var(--fg)]"
+              className="md:hidden flex items-center justify-center w-9 h-9 mr-2 shrink-0 order-2 text-[var(--fg-muted)] hover:text-[var(--fg)]"
             >
               <X size={18} />
             </button>
