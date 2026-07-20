@@ -119,18 +119,33 @@
   font-weight: 800;
 }
 
-/* 표 헤더 행 — 셀 본문 텍스트보다 굵기·크기를 한 단계 더 올려 위계를 분명히 한다 */
+/* 표 헤더 행 — 셀 본문 텍스트보다 굵기·크기를 한 단계 더 올려 위계를 분명히 한다.
+   font-size는 th/td 공통 규칙(아래)과 selector 특정도가 달라 서로 값을
+   이어받지 않으므로(같은 요소에 두 규칙이 font-size를 선언하면 특정도가
+   높은 이 규칙만 적용되고, em은 부모 기준으로 계산된다) 여기서도 직접
+   px로 낮춘 값을 쓴다 — 기존 0.95em(≈15.2px) 대비 약 2px 작게. */
 [data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] tr:first-child th,
 [data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] tr:first-child td {
   font-weight: 700;
-  font-size: 0.95em;
+  font-size: 13px;
   letter-spacing: 0.01em;
 }
 
-/* 표 셀 패딩을 넉넉하게 — 페이지 전체 여백감과 표 안쪽 밀도 사이 대비를 줄인다 */
+/* 표 셀 패딩을 넉넉하게 — 페이지 전체 여백감과 표 안쪽 밀도 사이 대비를 줄인다.
+   font-size는 기본 16px가 다소 커 보여 14px로 낮춘다. */
 [data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] th,
 [data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] td {
   padding: 13px 18px;
+  font-size: 14px;
+}
+
+/* 헤더 행(구분 등)을 제외한 나머지 셀 텍스트는 콘텐츠에 styles.bold가 박혀
+   있어도 화면에서는 볼드를 끈다 — 데이터는 그대로 두고 표시만 얇게. 아래
+   가격 강조 규칙의 font-weight:700!important보다 selector가 더 구체적이라
+   자동으로 이겨서, 그 규칙은 그대로 둬도 색만 남고 볼드는 빠진다. */
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] tr:not(:first-child) td,
+[data-page-slug="page-1783326349328"] .bn-editor [data-content-type="table"] tr:not(:first-child) td * {
+  font-weight: 400 !important;
 }
 
 /* 조항 제목 바로 다음 문단(표 위 설명 문구)은 셀 텍스트보다 낮은 위계로 —
