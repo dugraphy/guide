@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  --sidebar-width: 240px;
   --bg: #ffffff;
   --bg-secondary: #f7f7f5;
   --fg: #37352f;
