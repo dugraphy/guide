@@ -66,8 +66,8 @@ export default function SidebarShell({ header, children }: Props) {
         <div className="flex flex-col h-full w-60 shrink-0 overflow-y-auto">
           <div className="flex items-center border-b border-[var(--border)] shrink-0">
             <div
-              className={`flex items-center py-3 pl-3 flex-1 min-w-0 transition-opacity duration-150 ${
-                collapsed ? "order-2 md:opacity-0 md:pointer-events-none" : "order-1 opacity-100"
+              className={`flex items-center overflow-hidden py-3 pl-3 flex-1 min-w-0 opacity-100 transition-all duration-200 ease-in-out ${
+                collapsed ? "md:flex-none md:w-0 md:pl-0 md:opacity-0 md:pointer-events-none" : ""
               }`}
             >
               {header}
@@ -78,9 +78,7 @@ export default function SidebarShell({ header, children }: Props) {
               onClick={toggleCollapsed}
               aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
               title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-              className={`hidden md:flex items-center justify-center w-14 py-3 shrink-0 text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors ${
-                collapsed ? "order-1" : "order-2"
-              }`}
+              className="hidden md:flex items-center justify-center w-14 py-3 shrink-0 text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--hover)] transition-colors"
             >
               {collapsed ? <PanelLeft size={17} /> : <PanelLeftClose size={17} />}
             </button>
@@ -89,7 +87,7 @@ export default function SidebarShell({ header, children }: Props) {
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="메뉴 닫기"
-              className="md:hidden flex items-center justify-center w-9 h-9 mr-2 shrink-0 order-2 text-[var(--fg-muted)] hover:text-[var(--fg)]"
+              className="md:hidden flex items-center justify-center w-9 h-9 mr-2 shrink-0 text-[var(--fg-muted)] hover:text-[var(--fg)]"
             >
               <X size={18} />
             </button>
