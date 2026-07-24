@@ -443,7 +443,7 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-8 pt-8 pb-4 shrink-0 border-b border-[var(--border)]">
+      <div className="px-14 pt-8 pb-4 shrink-0 border-b border-[var(--border)]">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
           {canEdit && (
@@ -486,7 +486,7 @@ export default function ChecklistView({ db, initialRows, canEdit }: Props) {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto px-8 py-4">
+      <div className="flex-1 overflow-auto px-14 py-4">
         {rows.length === 0 ? (
           <p className="text-center py-12 text-sm text-[var(--fg-muted)]">
             아직 상담 기록이 없습니다. 새 상담 기록을 추가해보세요.

@@ -183,7 +183,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-8 pt-8 pb-0 shrink-0">
+      <div className="px-14 pt-8 pb-0 shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
           {canEdit && (

@@ -38,7 +38,7 @@ export default function EditablePageHeader({
   }, [isNew]);
 
   return (
-    <div className="px-8 pt-8 pb-0">
+    <div className="px-14 pt-8 pb-0">
       <div className="flex items-center justify-between mb-3">
         <input
           ref={inputRef}

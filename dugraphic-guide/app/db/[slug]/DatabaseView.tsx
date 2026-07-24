@@ -223,7 +223,7 @@ export default function DatabaseView({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-8 pt-8 pb-0 shrink-0">
+      <div className="px-14 pt-8 pb-0 shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-2xl font-bold text-[var(--fg)]">{db.name}</h1>
           {canEdit && (
@@ -272,7 +272,7 @@ export default function DatabaseView({
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto px-8 py-4">
+      <div className="flex-1 overflow-auto px-14 py-4">
         <div ref={containerRef} className={`${TABLE.wrapper}${!allowScroll ? " md:overflow-x-hidden" : ""}`}>
           <table
             className={TABLE.table}
