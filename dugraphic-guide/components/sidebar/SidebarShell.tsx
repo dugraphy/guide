@@ -57,14 +57,14 @@ export default function SidebarShell({ header, collapsedNav, children }: Props) 
       />
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 h-full w-60
+        className={`fixed inset-y-0 left-0 z-50 flex shrink-0 h-full w-[190px]
           bg-[var(--bg-secondary)] border-r border-[var(--border)]
           transition-all duration-200 ease-in-out overflow-hidden
           ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
           md:static md:z-auto md:translate-x-0
           ${collapsed ? "md:w-14" : ""}`}
       >
-        <div className="flex flex-col h-full w-60 shrink-0 overflow-y-auto">
+        <div className="flex flex-col h-full w-[190px] shrink-0 overflow-y-auto">
           <div className="flex items-center border-b border-[var(--border)] shrink-0">
             <div
               className={`flex items-center overflow-hidden py-3 pl-3 flex-1 min-w-0 opacity-100 transition-all duration-200 ease-in-out ${
