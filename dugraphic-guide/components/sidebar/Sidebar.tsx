@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, MessageCircleQuestion, ClipboardList, Receipt, Database } from "lucide-react";
+import { FileText, Users, MessageCircleQuestion, ClipboardList, Receipt, Database } from "lucide-react";
 import { getPages } from "@/lib/pages";
 import { getDatabases, type DatabaseDef } from "@/lib/databases";
 import { getSessionUser } from "@/lib/auth";
@@ -11,6 +11,10 @@ import AuthSection from "./AuthSection";
 import SidebarShell from "./SidebarShell";
 import CollapsedIconLink from "./CollapsedIconLink";
 
+// 접힘 상태 사이드바 아이콘은 모두 이 크기/두께로 통일한다 (아이콘 종류는 항목마다 달라도 시각적 스타일은 동일하게)
+const COLLAPSED_ICON_SIZE = 16;
+const COLLAPSED_ICON_STROKE = 2;
+
 const DATABASE_ICONS: Record<string, typeof Users> = {
   clients: Users,
   "inquiry-clients": MessageCircleQuestion,
@@ -19,7 +23,7 @@ const DATABASE_ICONS: Record<string, typeof Users> = {
 
 function databaseIcon(db: DatabaseDef) {
   const Icon = DATABASE_ICONS[db.slug] ?? Database;
-  return <Icon size={16} />;
+  return <Icon size={COLLAPSED_ICON_SIZE} strokeWidth={COLLAPSED_ICON_STROKE} />;
 }
 
 export default async function Sidebar() {
@@ -44,7 +48,7 @@ export default async function Sidebar() {
               key={page.slug}
               href={`/page/${page.slug}`}
               label={page.title}
-              icon={<span>{page.icon}</span>}
+              icon={<FileText size={COLLAPSED_ICON_SIZE} strokeWidth={COLLAPSED_ICON_STROKE} />}
             />
           ))}
 
@@ -65,7 +69,11 @@ export default async function Sidebar() {
           {role === "owner" && (
             <>
               <div className="w-6 h-px bg-[var(--border)] my-1" />
-              <CollapsedIconLink href="/quotes" label="견적서 목록" icon={<Receipt size={16} />} />
+              <CollapsedIconLink
+                href="/quotes"
+                label="견적서 목록"
+                icon={<Receipt size={COLLAPSED_ICON_SIZE} strokeWidth={COLLAPSED_ICON_STROKE} />}
+              />
             </>
           )}
         </>
