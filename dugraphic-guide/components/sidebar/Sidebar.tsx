@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Users, MessageCircleQuestion, ClipboardList, Receipt, Database } from "lucide-react";
 import { getPages } from "@/lib/pages";
-import { getDatabases } from "@/lib/databases";
+import { getDatabases, type DatabaseDef } from "@/lib/databases";
 import { getSessionUser } from "@/lib/auth";
 import SidebarItem from "./SidebarItem";
 import SortablePagesList from "./SortablePagesList";
@@ -8,6 +9,18 @@ import SortableDatabasesList from "./SortableDatabasesList";
 import NewPageButton from "./NewPageButton";
 import AuthSection from "./AuthSection";
 import SidebarShell from "./SidebarShell";
+import CollapsedIconLink from "./CollapsedIconLink";
+
+const DATABASE_ICONS: Record<string, typeof Users> = {
+  clients: Users,
+  "inquiry-clients": MessageCircleQuestion,
+  checklist: ClipboardList,
+};
+
+function databaseIcon(db: DatabaseDef) {
+  const Icon = DATABASE_ICONS[db.slug] ?? Database;
+  return <Icon size={16} />;
+}
 
 export default async function Sidebar() {
   const [pages, databases, { email, role }] = await Promise.all([
@@ -23,6 +36,39 @@ export default async function Sidebar() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/img/logo.png" alt="Dugraphic Guide" className="h-8 w-auto" />
         </Link>
+      }
+      collapsedNav={
+        <>
+          {pages.map((page) => (
+            <CollapsedIconLink
+              key={page.slug}
+              href={`/page/${page.slug}`}
+              label={page.title}
+              icon={<span>{page.icon}</span>}
+            />
+          ))}
+
+          {role === "owner" && databases.length > 0 && (
+            <>
+              <div className="w-6 h-px bg-[var(--border)] my-1" />
+              {databases.map((db) => (
+                <CollapsedIconLink
+                  key={db.slug}
+                  href={`/db/${db.slug}`}
+                  label={db.name}
+                  icon={databaseIcon(db)}
+                />
+              ))}
+            </>
+          )}
+
+          {role === "owner" && (
+            <>
+              <div className="w-6 h-px bg-[var(--border)] my-1" />
+              <CollapsedIconLink href="/quotes" label="견적서 목록" icon={<Receipt size={16} />} />
+            </>
+          )}
+        </>
       }
     >
       <nav className="flex flex-col gap-0.5 px-1 py-2 flex-1">

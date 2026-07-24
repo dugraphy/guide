@@ -8,10 +8,11 @@ const STORAGE_KEY = "dg-sidebar-collapsed";
 
 interface Props {
   header: React.ReactNode;
+  collapsedNav: React.ReactNode;
   children: React.ReactNode;
 }
 
-export default function SidebarShell({ header, children }: Props) {
+export default function SidebarShell({ header, collapsedNav, children }: Props) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -93,12 +94,16 @@ export default function SidebarShell({ header, children }: Props) {
             </button>
           </div>
 
+          <div className={`flex flex-col flex-1 min-h-0 ${collapsed ? "md:hidden" : ""}`}>
+            {children}
+          </div>
+
           <div
-            className={`flex flex-col flex-1 min-h-0 transition-opacity duration-150 ${
-              collapsed ? "md:opacity-0 md:pointer-events-none" : "opacity-100"
+            className={`hidden w-14 flex-1 min-h-0 flex-col items-center gap-1 py-2 ${
+              collapsed ? "md:flex" : ""
             }`}
           >
-            {children}
+            {collapsedNav}
           </div>
         </div>
       </aside>
