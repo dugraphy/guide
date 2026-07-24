@@ -33,7 +33,7 @@
 /* 페이지 본문 전체(표뿐 아니라 제목/문단/체크박스 등 모든 블록)를 "문의 클라이언트"
    DB 뷰(/db/inquiry-clients)와 같은 폭까지 넓힌다. BlockNote 코어의
    .bn-editor { padding-inline: 54px }가 유일한 폭 제한이었고(앱 자체 CSS에는
-   별도 max-width가 없다), DB 뷰는 이 padding 없이 바깥 wrapper(px-8)만 쓰므로
+   별도 max-width가 없다), DB 뷰는 이 padding 없이 바깥 wrapper(px-14)만 쓰므로
    여기서 0으로 없애면 두 화면의 좌우 여백이 정확히 같아진다. */
 .bn-editor {
   padding-inline: 0;

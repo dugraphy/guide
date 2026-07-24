@@ -215,7 +215,7 @@ export default function InquiryClientsView({ db, initialRows, initialTab, canEdi
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto px-8 py-4">
+      <div className="flex-1 overflow-auto px-14 py-4">
         <div ref={containerRef} className={`${TABLE.wrapper}${!allowScroll ? " md:overflow-x-hidden" : ""}`}>
           <table
             className={TABLE.table}
