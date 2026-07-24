@@ -43,18 +43,25 @@ function DomainSearchRenderer() {
 
   return (
     <div contentEditable={false} className="my-1 w-full">
-      <div className="flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg)] py-1 pr-1 pl-4 transition-shadow duration-150 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_18%,transparent)]">
-        <Search className="h-4 w-4 shrink-0 text-[var(--fg-muted)]" strokeWidth={2} />
-        <input
-          value={domain}
-          onChange={(e) => setDomain(e.target.value)}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Enter") handleSearch();
-          }}
-          placeholder="원하는 도메인을 입력하세요 예: mysite.com"
-          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-[var(--fg)] outline-none placeholder:text-[var(--fg-muted)]"
-        />
+      {/* 검색창과 버튼을 각각 독립된 캡슐로 분리해 flex-wrap으로 감싼다 —
+          하나로 이어붙인 캡슐에 shrink-0 버튼을 넣으면 폭이 딱 맞아떨어질
+          때만 안 넘치고, 폰트 렌더링/스크롤바 폭 차이로 살짝만 좁아져도
+          버튼이 본문 우측 경계 밖으로 튀어나갔다. 이제는 폭이 부족하면
+          버튼이 다음 줄로 자연스럽게 내려가 절대 넘치지 않는다. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-[220px] flex-1 items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg)] py-1 pr-1 pl-4 transition-shadow duration-150 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_18%,transparent)]">
+          <Search className="h-4 w-4 shrink-0 text-[var(--fg-muted)]" strokeWidth={2} />
+          <input
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") handleSearch();
+            }}
+            placeholder="원하는 도메인을 입력하세요 예: mysite.com"
+            className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm text-[var(--fg)] outline-none placeholder:text-[var(--fg-muted)]"
+          />
+        </div>
         <button
           type="button"
           onClick={handleSearch}
