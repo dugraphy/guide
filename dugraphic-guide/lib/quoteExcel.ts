@@ -128,7 +128,6 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   const { businessProfile, clientName, quoteDate, quoteType, items, depositRate, notes, vatIncluded } =
     input;
   const totals = calcQuoteTotals(items, depositRate, vatIncluded);
-  void quoteType;
 
   const { default: ExcelJSRuntime } = await import("exceljs");
   const workbook = new ExcelJSRuntime.Workbook();
@@ -393,12 +392,14 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     pairRow2("부가세(10%)", totals.vat, "합계금액", totals.grandTotal);
   }
 
-  pairRow2(
-    `⑨ 계약금(${depositRate}%)`,
-    totals.deposit,
-    "⑩ 잔금",
-    totals.balance
-  );
+  if (quoteType !== "연장") {
+    pairRow2(
+      `⑨ 계약금(${depositRate}%)`,
+      totals.deposit,
+      "⑩ 잔금",
+      totals.balance
+    );
+  }
 
   // 계좌 정보 — 계약금 바로 아래에, 강조 배경(회색) + 굵은 글씨로 표시.
   // 계좌 정보가 하나도 입력되어 있지 않으면 빈 회색 줄만 남는 걸 피하기 위해
@@ -434,17 +435,17 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   sheet.addRow([]);
 
   // ── 5. 안내사항 ──
-  const noticeHeaderRow = sheet.addRow(["안내사항"]);
-  sheet.mergeCells(noticeHeaderRow.number, 1, noticeHeaderRow.number, 7);
-  noticeHeaderRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
-  noticeHeaderRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
-
   const noteLines = notes
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
   if (noteLines.length > 0) {
+    const noticeHeaderRow = sheet.addRow(["안내사항"]);
+    sheet.mergeCells(noticeHeaderRow.number, 1, noticeHeaderRow.number, 7);
+    noticeHeaderRow.getCell(1).font = { name: FONT_NAME, bold: true, size: 14 };
+    noticeHeaderRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+
     // 안내사항 전체를 하나의 병합된 셀에 richText로 담는다. 소제목은 굵게,
     // "•" 불릿 항목은 앞에 공백을 붙여 들여쓴 일반 글씨로 구분한다(richText는
     // 런 단위 서식만 지원해서 셀 alignment.indent 같은 줄 단위 들여쓰기를 쓸

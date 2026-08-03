@@ -5,7 +5,7 @@
  *   id           uuid primary key default gen_random_uuid(),
  *   client_name  text not null,
  *   quote_date   date not null,
- *   quote_type   text not null check (quote_type in ('리뉴얼', '신규')),
+ *   quote_type   text not null check (quote_type in ('리뉴얼', '신규', '연장', '디자인')),
  *   items        jsonb not null default '[]'::jsonb,  -- QuoteItem[]
  *   deposit_rate numeric not null default 30,
  *   notes        text not null default '',
@@ -20,7 +20,7 @@
 
 import { createAdminClient } from "@/lib/supabase-admin";
 
-export type QuoteType = "리뉴얼" | "신규";
+export type QuoteType = "리뉴얼" | "신규" | "연장" | "디자인";
 
 export interface QuoteItem {
   name: string;

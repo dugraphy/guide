@@ -85,3 +85,8 @@ alter table public.business_profile
   add column if not exists account_number text not null default '';
 alter table public.business_profile
   add column if not exists account_holder text not null default '';
+
+-- 견적 유형 확장: 연장, 디자인 추가. Safe to re-run.
+alter table public.quotes drop constraint if exists quotes_quote_type_check;
+alter table public.quotes add constraint quotes_quote_type_check
+  check (quote_type in ('리뉴얼', '신규', '연장', '디자인'));

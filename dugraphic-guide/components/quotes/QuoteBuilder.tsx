@@ -75,7 +75,16 @@ const DEFAULT_NOTES: Record<QuoteType, string> = {
     "•  의뢰인이 자료 제공, 컨펌 등에 7일 이상 응답이 없는 경우 사전 안내 후 계약을 해지할 수 있으며 계약금은 환불되지 않습니다.\n" +
     "•  천재지변 등 불가항력 사유로 지연되는 경우, 관련 기한 산정에서 해당 기간은 제외됩니다.\n" +
     "본 계약서는 위 조건에 따라 의뢰인과 수주인 쌍방이 합의하였음을 확인합니다.",
+  연장: "",
+  디자인: "",
 };
+
+const QUOTE_TYPE_OPTIONS: { type: QuoteType; label: string; description: string }[] = [
+  { type: "리뉴얼", label: "리뉴얼", description: "기존 서비스 유지보수 · 디자인 개편" },
+  { type: "신규", label: "신규", description: "처음 제작하는 프로젝트" },
+  { type: "연장", label: "연장", description: "기존 계약 기간 연장" },
+  { type: "디자인", label: "디자인", description: "세부 내용 추후 확정" },
+];
 
 function emptyItem(): QuoteItem {
   return { name: "", unitPrice: 0, discountPrice: 0, qty: 1, note: "" };
@@ -111,6 +120,7 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
   const selectType = (type: QuoteType) => {
     setQuoteType(type);
     setNotes(DEFAULT_NOTES[type]);
+    if (type === "연장") setDepositRate(0);
   };
 
   const resetForm = () => {
@@ -175,21 +185,17 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
       <div className="max-w-xl mx-auto px-6 py-16 text-center">
         <h1 className="text-xl font-bold text-[var(--fg)] mb-2">새 견적서</h1>
         <p className="text-sm text-[var(--fg-muted)] mb-8">견적 유형을 선택해주세요.</p>
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={() => selectType("리뉴얼")}
-            className="flex-1 max-w-[200px] px-6 py-8 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--hover)] transition-colors"
-          >
-            <div className="text-lg font-semibold text-[var(--fg)] mb-1">리뉴얼</div>
-            <div className="text-xs text-[var(--fg-muted)]">기존 서비스 유지보수 · 디자인 개편</div>
-          </button>
-          <button
-            onClick={() => selectType("신규")}
-            className="flex-1 max-w-[200px] px-6 py-8 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--hover)] transition-colors"
-          >
-            <div className="text-lg font-semibold text-[var(--fg)] mb-1">신규</div>
-            <div className="text-xs text-[var(--fg-muted)]">처음 제작하는 프로젝트</div>
-          </button>
+        <div className="grid grid-cols-2 gap-4">
+          {QUOTE_TYPE_OPTIONS.map((option) => (
+            <button
+              key={option.type}
+              onClick={() => selectType(option.type)}
+              className="px-6 py-8 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] hover:bg-[var(--hover)] transition-colors"
+            >
+              <div className="text-lg font-semibold text-[var(--fg)] mb-1">{option.label}</div>
+              <div className="text-xs text-[var(--fg-muted)]">{option.description}</div>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -398,26 +404,30 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
               </div>
             </>
           )}
-          <div className="flex justify-between items-center">
-            <span className="text-[var(--fg-muted)]">계약금 비율</span>
-            <span className="flex items-center gap-1 text-[var(--fg)]">
-              <input
-                type="number"
-                value={depositRate}
-                onChange={(e) => setDepositRate(Number(e.target.value))}
-                className="w-14 px-1.5 py-0.5 text-right border border-[var(--border)] rounded bg-[var(--bg)] outline-none focus:border-[var(--accent)]"
-              />
-              %
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[var(--fg-muted)]">계약금</span>
-            <span className="text-[var(--fg)]">{formatCurrency(totals.deposit)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[var(--fg-muted)]">잔금</span>
-            <span className="text-[var(--fg)]">{formatCurrency(totals.balance)}</span>
-          </div>
+          {quoteType !== "연장" && (
+            <>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--fg-muted)]">계약금 비율</span>
+                <span className="flex items-center gap-1 text-[var(--fg)]">
+                  <input
+                    type="number"
+                    value={depositRate}
+                    onChange={(e) => setDepositRate(Number(e.target.value))}
+                    className="w-14 px-1.5 py-0.5 text-right border border-[var(--border)] rounded bg-[var(--bg)] outline-none focus:border-[var(--accent)]"
+                  />
+                  %
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">계약금</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.deposit)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">잔금</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.balance)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between pt-2 border-t border-[var(--border)] font-semibold text-[var(--fg)]">
             <span>총 청구액</span>
             <span>{formatCurrency(totals.totalBilled)}</span>
@@ -428,15 +438,17 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
         </div>
       </section>
 
-      <section>
-        <h2 className="text-sm font-semibold text-[var(--fg)] mb-3">안내사항</h2>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={6}
-          className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-        />
-      </section>
+      {quoteType !== "연장" && (
+        <section>
+          <h2 className="text-sm font-semibold text-[var(--fg)] mb-3">안내사항</h2>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={6}
+            className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg bg-[var(--bg)] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+          />
+        </section>
+      )}
 
       <div className="flex justify-end pt-2">
         <button
