@@ -283,9 +283,13 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
   sheet.addRow([]);
 
   // ── 3. 품목 표 ──
+  const isExtension = quoteType === "연장";
   const vatLabel = vatIncluded ? "부가세 포함" : "부가세 별도";
-  const itemsHeaderRow = sheet.addRow(["No", "품목", "단가", "할인단가", "수량", `공급가(${vatLabel})`, "비고"]);
+  const itemsHeaderRow = isExtension
+    ? sheet.addRow(["No", "품목", "단가", "부가세", "공급가", "", "비고"])
+    : sheet.addRow(["No", "품목", "단가", "할인단가", "수량", `공급가(${vatLabel})`, "비고"]);
   itemsHeaderRow.height = 24;
+  if (isExtension) sheet.mergeCells(itemsHeaderRow.number, 5, itemsHeaderRow.number, 6);
   for (let c = 1; c <= 7; c++) {
     const cell = itemsHeaderRow.getCell(c);
     cell.font = { name: FONT_NAME, bold: true, size: 11, color: { argb: "FFFFFFFF" } };
@@ -294,8 +298,15 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     cell.border = THIN_BORDER;
   }
 
-  const itemRows = items.map((item, i) =>
-    sheet.addRow([
+  const itemRows = items.map((item, i) => {
+    if (isExtension) {
+      const vat = item.unitPrice * 0.1;
+      const supply = item.unitPrice + vat;
+      const row = sheet.addRow([i + 1, item.name, item.unitPrice, vat, supply, "", item.note]);
+      sheet.mergeCells(row.number, 5, row.number, 6);
+      return row;
+    }
+    return sheet.addRow([
       i + 1,
       item.name,
       item.unitPrice,
@@ -303,8 +314,8 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       item.qty,
       item.discountPrice * item.qty,
       item.note,
-    ])
-  );
+    ]);
+  });
   itemRows.forEach((row, i) => {
     row.height = 22;
     for (let c = 1; c <= 7; c++) {
@@ -320,9 +331,14 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     }
     row.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
     row.getCell(3).numFmt = MONEY_FORMAT;
-    row.getCell(4).numFmt = MONEY_FORMAT;
-    row.getCell(5).numFmt = QTY_FORMAT;
-    row.getCell(6).numFmt = MONEY_FORMAT;
+    if (isExtension) {
+      row.getCell(4).numFmt = MONEY_FORMAT;
+      row.getCell(5).numFmt = MONEY_FORMAT;
+    } else {
+      row.getCell(4).numFmt = MONEY_FORMAT;
+      row.getCell(5).numFmt = QTY_FORMAT;
+      row.getCell(6).numFmt = MONEY_FORMAT;
+    }
   });
 
   sheet.addRow([]);
@@ -379,17 +395,28 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     return row;
   }
 
-  pairRow3(
-    "⑥ 총 공급가액(할인 전)",
-    totals.totalBeforeDiscount,
-    "⑦ 할인 금액",
-    totals.discountAmount,
-    "⑧ 총 공급가액(할인 후)",
-    totals.totalAfterDiscount
-  );
+  if (isExtension) {
+    pairRow3(
+      "⑥ 총 단가",
+      totals.totalBeforeDiscount,
+      "⑦ 부가세",
+      totals.vat,
+      "⑧ 총 공급가액",
+      totals.grandTotal
+    );
+  } else {
+    pairRow3(
+      "⑥ 총 공급가액(할인 전)",
+      totals.totalBeforeDiscount,
+      "⑦ 할인 금액",
+      totals.discountAmount,
+      "⑧ 총 공급가액(할인 후)",
+      totals.totalAfterDiscount
+    );
 
-  if (vatIncluded) {
-    pairRow2("부가세(10%)", totals.vat, "합계금액", totals.grandTotal);
+    if (vatIncluded) {
+      pairRow2("부가세(10%)", totals.vat, "합계금액", totals.grandTotal);
+    }
   }
 
   if (quoteType !== "연장") {

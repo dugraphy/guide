@@ -117,10 +117,15 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
     [items, depositRate, vatMode]
   );
 
+  const isExtension = quoteType === "연장";
+
   const selectType = (type: QuoteType) => {
     setQuoteType(type);
     setNotes(DEFAULT_NOTES[type]);
-    if (type === "연장") setDepositRate(0);
+    if (type === "연장") {
+      setDepositRate(0);
+      setVatMode("inclusive");
+    }
   };
 
   const resetForm = () => {
@@ -280,8 +285,14 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
                 <th className={`${TABLE.th} w-12`}>No</th>
                 <th className={TABLE.th}>품목</th>
                 <th className={`${TABLE.th} w-28`}>단가</th>
-                <th className={`${TABLE.th} w-28`}>할인단가</th>
-                <th className={`${TABLE.th} w-16`}>수량</th>
+                {isExtension ? (
+                  <th className={`${TABLE.th} w-28`}>부가세</th>
+                ) : (
+                  <>
+                    <th className={`${TABLE.th} w-28`}>할인단가</th>
+                    <th className={`${TABLE.th} w-16`}>수량</th>
+                  </>
+                )}
                 <th className={`${TABLE.th} w-28`}>공급가</th>
                 <th className={TABLE.th}>비고</th>
                 <th className={TABLE.thAction} />
@@ -305,29 +316,42 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
                     <input
                       type="number"
                       value={item.unitPrice}
-                      onChange={(e) => updateItem(i, { unitPrice: Number(e.target.value) })}
+                      onChange={(e) => {
+                        const unitPrice = Number(e.target.value);
+                        updateItem(i, isExtension ? { unitPrice, discountPrice: unitPrice } : { unitPrice });
+                      }}
                       className={`${TABLE.cellInput} text-right`}
                     />
                   </td>
-                  <td className={TABLE.td}>
-                    <input
-                      type="number"
-                      value={item.discountPrice}
-                      onChange={(e) => updateItem(i, { discountPrice: Number(e.target.value) })}
-                      className={`${TABLE.cellInput} text-right`}
-                    />
-                  </td>
-                  <td className={TABLE.td}>
-                    <input
-                      type="number"
-                      value={item.qty}
-                      onChange={(e) => updateItem(i, { qty: Number(e.target.value) })}
-                      className={`${TABLE.cellInput} text-right`}
-                    />
-                  </td>
+                  {isExtension ? (
+                    <td className={TABLE.td}>
+                      <span className={`${TABLE.cellReadOnly} text-right`}>
+                        {formatCurrency(item.unitPrice * 0.1)}
+                      </span>
+                    </td>
+                  ) : (
+                    <>
+                      <td className={TABLE.td}>
+                        <input
+                          type="number"
+                          value={item.discountPrice}
+                          onChange={(e) => updateItem(i, { discountPrice: Number(e.target.value) })}
+                          className={`${TABLE.cellInput} text-right`}
+                        />
+                      </td>
+                      <td className={TABLE.td}>
+                        <input
+                          type="number"
+                          value={item.qty}
+                          onChange={(e) => updateItem(i, { qty: Number(e.target.value) })}
+                          className={`${TABLE.cellInput} text-right`}
+                        />
+                      </td>
+                    </>
+                  )}
                   <td className={TABLE.td}>
                     <span className={`${TABLE.cellReadOnly} text-right`}>
-                      {formatCurrency(item.discountPrice * item.qty)}
+                      {formatCurrency(isExtension ? item.unitPrice * 1.1 : item.discountPrice * item.qty)}
                     </span>
                   </td>
                   <td className={TABLE.td}>
@@ -349,63 +373,82 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
           </table>
         </div>
         <p className="text-xs text-[var(--fg-muted)] mt-2">
-          * 공급가는 할인단가 × 수량으로 자동 계산되며, 부가세는 포함되지 않습니다 (부가세 별도).
+          {isExtension
+            ? "* 부가세는 단가의 10%로, 공급가는 단가 + 부가세로 자동 계산됩니다."
+            : "* 공급가는 할인단가 × 수량으로 자동 계산되며, 부가세는 포함되지 않습니다 (부가세 별도)."}
         </p>
       </section>
 
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-[var(--fg)]">합계</h2>
-          <div className="inline-flex rounded-lg border border-[var(--border)] p-0.5">
-            <button
-              onClick={() => setVatMode("exclusive")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                vatMode === "exclusive"
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
-              }`}
-            >
-              부가세 별도
-            </button>
-            <button
-              onClick={() => setVatMode("inclusive")}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                vatMode === "inclusive"
-                  ? "bg-[var(--accent)] text-white"
-                  : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
-              }`}
-            >
-              부가세 포함
-            </button>
-          </div>
+          {!isExtension && (
+            <div className="inline-flex rounded-lg border border-[var(--border)] p-0.5">
+              <button
+                onClick={() => setVatMode("exclusive")}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  vatMode === "exclusive"
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                }`}
+              >
+                부가세 별도
+              </button>
+              <button
+                onClick={() => setVatMode("inclusive")}
+                className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                  vatMode === "inclusive"
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--fg-muted)] hover:text-[var(--fg)]"
+                }`}
+              >
+                부가세 포함
+              </button>
+            </div>
+          )}
         </div>
         <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)] p-4 space-y-2 text-sm max-w-md ml-auto">
-          <div className="flex justify-between">
-            <span className="text-[var(--fg-muted)]">총 공급가액(할인 전)</span>
-            <span className="text-[var(--fg)]">{formatCurrency(totals.totalBeforeDiscount)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[var(--fg-muted)]">할인 금액</span>
-            <span className="text-[var(--fg)]">{formatCurrency(totals.discountAmount)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-[var(--fg-muted)]">총 공급가액(할인 후)</span>
-            <span className="text-[var(--fg)]">{formatCurrency(totals.totalAfterDiscount)}</span>
-          </div>
-          {vatMode === "inclusive" && (
+          {isExtension ? (
             <>
               <div className="flex justify-between">
-                <span className="text-[var(--fg-muted)]">부가세(10%)</span>
+                <span className="text-[var(--fg-muted)]">총 단가</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.totalBeforeDiscount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">부가세</span>
                 <span className="text-[var(--fg)]">{formatCurrency(totals.vat)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[var(--fg-muted)]">합계금액</span>
+                <span className="text-[var(--fg-muted)]">총 공급가액</span>
                 <span className="text-[var(--fg)]">{formatCurrency(totals.grandTotal)}</span>
               </div>
             </>
-          )}
-          {quoteType !== "연장" && (
+          ) : (
             <>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">총 공급가액(할인 전)</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.totalBeforeDiscount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">할인 금액</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.discountAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">총 공급가액(할인 후)</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.totalAfterDiscount)}</span>
+              </div>
+              {vatMode === "inclusive" && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--fg-muted)]">부가세(10%)</span>
+                    <span className="text-[var(--fg)]">{formatCurrency(totals.vat)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[var(--fg-muted)]">합계금액</span>
+                    <span className="text-[var(--fg)]">{formatCurrency(totals.grandTotal)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-[var(--fg-muted)]">계약금 비율</span>
                 <span className="flex items-center gap-1 text-[var(--fg)]">
