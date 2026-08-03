@@ -118,14 +118,15 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
   );
 
   const isExtension = quoteType === "연장";
+  const noDiscount = isExtension || quoteType === "신규" || quoteType === "리뉴얼";
+  const hasQty = quoteType !== "연장";
+  const supplyLabel = quoteType === "신규" || quoteType === "리뉴얼" ? "총 공급가" : "공급가";
 
   const selectType = (type: QuoteType) => {
     setQuoteType(type);
     setNotes(DEFAULT_NOTES[type]);
-    if (type === "연장") {
-      setDepositRate(0);
-      setVatMode("inclusive");
-    }
+    if (type === "연장") setDepositRate(0);
+    if (type === "연장" || type === "신규" || type === "리뉴얼") setVatMode("inclusive");
   };
 
   const resetForm = () => {
@@ -285,15 +286,13 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
                 <th className={`${TABLE.th} w-12`}>No</th>
                 <th className={TABLE.th}>품목</th>
                 <th className={`${TABLE.th} w-28`}>단가</th>
-                {isExtension ? (
+                {noDiscount ? (
                   <th className={`${TABLE.th} w-28`}>부가세</th>
                 ) : (
-                  <>
-                    <th className={`${TABLE.th} w-28`}>할인단가</th>
-                    <th className={`${TABLE.th} w-16`}>수량</th>
-                  </>
+                  <th className={`${TABLE.th} w-28`}>할인단가</th>
                 )}
-                <th className={`${TABLE.th} w-28`}>공급가</th>
+                {hasQty && <th className={`${TABLE.th} w-16`}>수량</th>}
+                <th className={`${TABLE.th} w-28`}>{supplyLabel}</th>
                 <th className={TABLE.th}>비고</th>
                 <th className={TABLE.thAction} />
               </tr>
@@ -318,40 +317,40 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
                       value={item.unitPrice}
                       onChange={(e) => {
                         const unitPrice = Number(e.target.value);
-                        updateItem(i, isExtension ? { unitPrice, discountPrice: unitPrice } : { unitPrice });
+                        updateItem(i, noDiscount ? { unitPrice, discountPrice: unitPrice } : { unitPrice });
                       }}
                       className={`${TABLE.cellInput} text-right`}
                     />
                   </td>
-                  {isExtension ? (
+                  {noDiscount ? (
                     <td className={TABLE.td}>
                       <span className={`${TABLE.cellReadOnly} text-right`}>
-                        {formatCurrency(item.unitPrice * 0.1)}
+                        {formatCurrency(item.unitPrice * item.qty * 0.1)}
                       </span>
                     </td>
                   ) : (
-                    <>
-                      <td className={TABLE.td}>
-                        <input
-                          type="number"
-                          value={item.discountPrice}
-                          onChange={(e) => updateItem(i, { discountPrice: Number(e.target.value) })}
-                          className={`${TABLE.cellInput} text-right`}
-                        />
-                      </td>
-                      <td className={TABLE.td}>
-                        <input
-                          type="number"
-                          value={item.qty}
-                          onChange={(e) => updateItem(i, { qty: Number(e.target.value) })}
-                          className={`${TABLE.cellInput} text-right`}
-                        />
-                      </td>
-                    </>
+                    <td className={TABLE.td}>
+                      <input
+                        type="number"
+                        value={item.discountPrice}
+                        onChange={(e) => updateItem(i, { discountPrice: Number(e.target.value) })}
+                        className={`${TABLE.cellInput} text-right`}
+                      />
+                    </td>
+                  )}
+                  {hasQty && (
+                    <td className={TABLE.td}>
+                      <input
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => updateItem(i, { qty: Number(e.target.value) })}
+                        className={`${TABLE.cellInput} text-right`}
+                      />
+                    </td>
                   )}
                   <td className={TABLE.td}>
                     <span className={`${TABLE.cellReadOnly} text-right`}>
-                      {formatCurrency(isExtension ? item.unitPrice * 1.1 : item.discountPrice * item.qty)}
+                      {formatCurrency(noDiscount ? item.unitPrice * item.qty * 1.1 : item.discountPrice * item.qty)}
                     </span>
                   </td>
                   <td className={TABLE.td}>
@@ -375,14 +374,16 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
         <p className="text-xs text-[var(--fg-muted)] mt-2">
           {isExtension
             ? "* 부가세는 단가의 10%로, 공급가는 단가 + 부가세로 자동 계산됩니다."
-            : "* 공급가는 할인단가 × 수량으로 자동 계산되며, 부가세는 포함되지 않습니다 (부가세 별도)."}
+            : noDiscount
+              ? "* 부가세는 단가×수량의 10%로, 총 공급가는 단가×수량 + 부가세로 자동 계산됩니다."
+              : "* 공급가는 할인단가 × 수량으로 자동 계산되며, 부가세는 포함되지 않습니다 (부가세 별도)."}
         </p>
       </section>
 
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-[var(--fg)]">합계</h2>
-          {!isExtension && (
+          {!noDiscount && (
             <div className="inline-flex rounded-lg border border-[var(--border)] p-0.5">
               <button
                 onClick={() => setVatMode("exclusive")}
@@ -421,6 +422,41 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
               <div className="flex justify-between">
                 <span className="text-[var(--fg-muted)]">총 공급가액</span>
                 <span className="text-[var(--fg)]">{formatCurrency(totals.grandTotal)}</span>
+              </div>
+            </>
+          ) : noDiscount ? (
+            <>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">총 단가액</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.totalBeforeDiscount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">총 부가세</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.vat)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">총 공급가액</span>
+                <span className="text-[var(--fg)]">{formatCurrency(totals.grandTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--fg-muted)]">계약금 비율</span>
+                <span className="flex items-center gap-1 text-[var(--fg)]">
+                  <input
+                    type="number"
+                    value={depositRate}
+                    onChange={(e) => setDepositRate(Number(e.target.value))}
+                    className="w-14 px-1.5 py-0.5 text-right border border-[var(--border)] rounded bg-[var(--bg)] outline-none focus:border-[var(--accent)]"
+                  />
+                  %
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">계약금</span>
+                <span className="font-semibold text-[var(--fg)]">{formatCurrency(totals.deposit)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[var(--fg-muted)]">잔금</span>
+                <span className="font-semibold text-[var(--fg)]">{formatCurrency(totals.balance)}</span>
               </div>
             </>
           ) : (

@@ -284,10 +284,15 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
 
   // ── 3. 품목 표 ──
   const isExtension = quoteType === "연장";
+  const noDiscount = isExtension || quoteType === "신규" || quoteType === "리뉴얼";
+  const smallNoteFont = quoteType === "신규" || quoteType === "리뉴얼";
+  const supplyLabel = quoteType === "신규" || quoteType === "리뉴얼" ? "총 공급가" : "공급가";
   const vatLabel = vatIncluded ? "부가세 포함" : "부가세 별도";
   const itemsHeaderRow = isExtension
     ? sheet.addRow(["No", "품목", "단가", "부가세", "공급가", "", "비고"])
-    : sheet.addRow(["No", "품목", "단가", "할인단가", "수량", `공급가(${vatLabel})`, "비고"]);
+    : noDiscount
+      ? sheet.addRow(["No", "품목", "단가", "부가세", "수량", supplyLabel, "비고"])
+      : sheet.addRow(["No", "품목", "단가", "할인단가", "수량", `공급가(${vatLabel})`, "비고"]);
   itemsHeaderRow.height = 24;
   if (isExtension) sheet.mergeCells(itemsHeaderRow.number, 5, itemsHeaderRow.number, 6);
   for (let c = 1; c <= 7; c++) {
@@ -305,6 +310,11 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       const row = sheet.addRow([i + 1, item.name, item.unitPrice, vat, supply, "", item.note]);
       sheet.mergeCells(row.number, 5, row.number, 6);
       return row;
+    }
+    if (noDiscount) {
+      const vat = item.unitPrice * item.qty * 0.1;
+      const supply = item.unitPrice * item.qty + vat;
+      return sheet.addRow([i + 1, item.name, item.unitPrice, vat, item.qty, supply, item.note]);
     }
     return sheet.addRow([
       i + 1,
@@ -338,6 +348,9 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       row.getCell(4).numFmt = MONEY_FORMAT;
       row.getCell(5).numFmt = QTY_FORMAT;
       row.getCell(6).numFmt = MONEY_FORMAT;
+    }
+    if (smallNoteFont) {
+      row.getCell(7).font = { name: FONT_NAME, size: 9 };
     }
   });
 
@@ -374,7 +387,13 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     return row;
   }
 
-  function pairRow2(label1: string, value1: number, label2: string, value2: number) {
+  function pairRow2(
+    label1: string,
+    value1: number,
+    label2: string,
+    value2: number,
+    boldValues = false
+  ) {
     const row = sheet.addRow(["", "", "", "", "", "", ""]);
     row.height = 22;
     sheet.mergeCells(row.number, 1, row.number, 2);
@@ -388,6 +407,10 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
     styleValueCell(row.getCell(3));
     styleLabelCell(row.getCell(5));
     styleValueCell(row.getCell(6));
+    if (boldValues) {
+      row.getCell(3).font = { ...row.getCell(3).font, bold: true };
+      row.getCell(6).font = { ...row.getCell(6).font, bold: true };
+    }
     [3, 6].forEach((c) => {
       row.getCell(c).numFmt = MONEY_FORMAT;
       row.getCell(c).alignment = { horizontal: "right", vertical: "middle" };
@@ -400,6 +423,15 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       "⑥ 총 단가",
       totals.totalBeforeDiscount,
       "⑦ 부가세",
+      totals.vat,
+      "⑧ 총 공급가액",
+      totals.grandTotal
+    );
+  } else if (noDiscount) {
+    pairRow3(
+      "⑥ 총 단가액",
+      totals.totalBeforeDiscount,
+      "⑦ 총 부가세",
       totals.vat,
       "⑧ 총 공급가액",
       totals.grandTotal
@@ -424,7 +456,8 @@ export async function buildQuoteWorkbook(input: QuoteExcelInput): Promise<ExcelJ
       `⑨ 계약금(${depositRate}%)`,
       totals.deposit,
       "⑩ 잔금",
-      totals.balance
+      totals.balance,
+      quoteType === "신규" || quoteType === "리뉴얼"
     );
   }
 
