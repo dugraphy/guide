@@ -1,0 +1,47 @@
+.wp-scope {
+  --wp-ink: #101010;
+  --wp-paper: #fcfcfb;
+  --wp-paper-dim: #f1f1ef;
+  --wp-line: #e4e4e1;
+  --wp-accent: #2eaadc;
+  --wp-muted: #7a7873;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-track {
+  animation: marquee 26s linear infinite;
+}
+
+@keyframes heroIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-in {
+  animation: heroIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+  .hero-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

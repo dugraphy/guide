@@ -15,8 +15,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const headersList = await headers();
-  // 강제 비밀번호 변경 화면에서는 사이드바(메뉴/데이터베이스 등 다른 콘텐츠)를 숨긴다.
-  const hideSidebar = headersList.get("x-pathname") === "/force-password-change";
+  // 강제 비밀번호 변경 화면과 랜딩페이지에서는 사이드바(메뉴/데이터베이스 등 다른 콘텐츠)를 숨긴다.
+  const pathname = headersList.get("x-pathname");
+  const hideSidebar = pathname === "/force-password-change" || pathname === "/welcome";
 
   return (
     <html lang="ko" className="h-full">
