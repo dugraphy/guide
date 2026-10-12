@@ -97,19 +97,22 @@ function todayISO(): string {
 interface Props {
   businessProfile: BusinessProfile;
   existingQuote?: QuoteRow;
+  /** 기존 견적서를 복제해 새 견적서로 작성할 때의 원본 (견적일자는 오늘로 새로 설정) */
+  cloneFrom?: QuoteRow;
 }
 
-export default function QuoteBuilder({ businessProfile, existingQuote }: Props) {
+export default function QuoteBuilder({ businessProfile, existingQuote, cloneFrom }: Props) {
   const router = useRouter();
-  const [quoteType, setQuoteType] = useState<QuoteType | null>(existingQuote?.quoteType ?? null);
-  const [clientName, setClientName] = useState(existingQuote?.clientName ?? "");
+  const seed = existingQuote ?? cloneFrom;
+  const [quoteType, setQuoteType] = useState<QuoteType | null>(seed?.quoteType ?? null);
+  const [clientName, setClientName] = useState(seed?.clientName ?? "");
   const [quoteDate, setQuoteDate] = useState(existingQuote?.quoteDate ?? todayISO());
-  const [items, setItems] = useState<QuoteItem[]>(existingQuote?.items ?? [emptyItem()]);
-  const [depositRate, setDepositRate] = useState(existingQuote?.depositRate ?? 30);
-  const [notes, setNotes] = useState(existingQuote?.notes ?? "");
-  const [vatMode, setVatMode] = useState<VatMode>(
-    existingQuote?.vatIncluded ? "inclusive" : "exclusive"
+  const [items, setItems] = useState<QuoteItem[]>(
+    seed?.items ? seed.items.map((it) => ({ ...it })) : [emptyItem()]
   );
+  const [depositRate, setDepositRate] = useState(seed?.depositRate ?? 30);
+  const [notes, setNotes] = useState(seed?.notes ?? "");
+  const [vatMode, setVatMode] = useState<VatMode>(seed?.vatIncluded ? "inclusive" : "exclusive");
   const [downloading, setDownloading] = useState(false);
 
   const totals = useMemo(
@@ -175,7 +178,7 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         alert(data.error ?? "견적서 기록 저장에 실패했습니다. (엑셀 파일은 다운로드되었습니다)");
-      } else if (isEdit) {
+      } else if (isEdit || cloneFrom) {
         router.push("/quotes");
       } else {
         router.refresh();
@@ -211,7 +214,7 @@ export default function QuoteBuilder({ businessProfile, existingQuote }: Props) 
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[var(--fg)]">
-          {existingQuote ? "견적서 수정" : "새 견적서"}{" "}
+          {existingQuote ? "견적서 수정" : cloneFrom ? "견적서 복제" : "새 견적서"}{" "}
           <span className="text-sm font-normal text-[var(--fg-muted)]">· {quoteType}</span>
         </h1>
         <button

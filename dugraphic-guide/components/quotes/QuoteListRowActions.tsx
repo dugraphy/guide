@@ -64,6 +64,12 @@ export default function QuoteListRowActions({ quote, businessProfile }: Props) {
       >
         수정
       </Link>
+      <Link
+        href={`/quotes/new?from=${quote.id}`}
+        className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)]"
+      >
+        복제
+      </Link>
       <button
         onClick={handleDelete}
         disabled={deleting}
